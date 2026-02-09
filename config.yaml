@@ -1,0 +1,21 @@
+settings:
+  session_name: "tg_dispatcher"
+  loop_interval: 300    # 轮询间隔（秒）
+  log_level: "INFO"
+
+tasks:
+  - name: "Twitter_Article"
+    enable: true
+    sources: [-5184448717,-5097290219] # 请替换为实际的 ID
+    keywords: ["twitter.com", "x.com"]
+    output:
+      path: "./data/x/x_url.csv"
+      format: "csv"
+
+  - name: "WeChat_Links"
+    enable: true
+    sources: [-5175449542]    # "all" 表示监听所有已配置的群组
+    keywords: ["mp.weixin.qq.com"]
+    output:
+      path: "./data/wechat/wechat_url.csv"
+      format: "csv"

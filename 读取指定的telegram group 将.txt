@@ -1,0 +1,658 @@
+读取指定的telegram group， 将
+
+
+一个调度器， 调度的内容是可配置的，将不同group内的信息发送到不同目录下的txt/csv文件内的链接（x或者wechat或者抖音，可定义增加的内容链接），
+
+
+
+基于你提供的 DESIGN.md 和 README.md 文件内容，我对 TG-Exporter (v0.3.1) 项目的功能范围和架构设计进行了客观分析。
+
+  总体来说，这是一个定位清晰、架构合理且实用性强的垂直领域工具。它没有试图做一个“大而全”的 Telegram 客户端，而是专注于“数据归档”这一核心需求，并在 v0.3.1 版本中通过“增量更新”和“CLI
+  支持”解决了实际使用中的痛点。
+
+  以下是详细的分析意见：
+
+  1. 核心优势与亮点
+
+   * 极具实用价值的存储策略变更 (v0.3.1)
+       * 从“覆盖”到“追加”: 设计文档中提到的存储策略变更（从“新到旧覆盖”改为“旧到新追加”）是该项目最成熟的决策。对于日志型数据（聊天记录），追加写入 (Append Mode)
+         不仅符合数据的时间线性质，更是实现高效增量备份的基础。这意味着用户可以每天运行一次脚本，只拉取当天的几百条消息，而不是重新拉取过去几年的数万条数据。
+       * 抗限流与低内存: 流式写入 (flush) 和对 FloodWaitError 的处理，表明项目充分考虑了 Telegram API 的限制和大规模数据导出的稳定性。
+
+   * 优秀的工程化落地
+       * 配置分层: 实现了 CLI Args > .env > Defaults 的经典配置优先级。这使得工具既适合作为定时任务（cronjob）长期运行（读取 .env），也适合临时性的手动操作（通过 CLI 参数覆盖）。
+       * 数据交付友好: 特别强调 UTF-8-SIG 编码以兼容 Excel，这是一个非常“接地气”的细节，解决了非技术人员查看数据的痛点。
+
+  2. 功能范围边界 (Scope Boundaries)
+
+  项目目前的边界界定非常明确，这是一种克制的优点，但也意味着某些场景无法覆盖：
+
+   * 内容边界：重文本，轻媒体
+       * 当前: 仅提取文本，多媒体被转换为标签（如 [图片], [文件]）。
+       * 分析: 这极大降低了工具的复杂度和存储压力。对于仅需要“搜索历史记录”或“文本分析”的用户来说足够了。但对于希望完整备份（包括表情包、视频、文档）的用户，此工具的功能是不完整的。
+
+   * 格式边界：单一 CSV
+       * 当前: 仅支持 CSV 格式。
+       * 分析: CSV 适合表格查看和简单统计，但难以保留消息的层级结构（如回复关系 reply_to 虽有 ID 但不直观）、富文本格式（粗体、链接）以及复杂的元数据（JSON 格式通常更适合此类数据）。
+
+   * 筛选边界：基于 ID 的线性筛选
+       * 当前: 主要是基于 min_id 的增量筛选和 limit 数量限制。
+       * 分析: 缺乏基于“时间范围”（如：只导出2023年的消息）或“发送者”（如：只导出某人的消息）的筛选功能。目前的增量机制是“从上次结束的地方继续”，而不是“任意指定时间段”。
+
+  3. 潜在改进方向 (建议)
+
+  基于现有架构，以下功能扩展属于“低成本高收益”：
+
+   1. 富文本/结构化导出 (JSON Support)
+       * CSV 在处理换行符和复杂元数据时有局限性。增加一个 --format json 选项，将原始 API 响应清洗后存为 JSONL (JSON Lines) 格式，更有利于后续的数据分析或导入其他系统。
+
+   2. 更灵活的断点控制
+       * 目前依赖扫描 CSV 文件获取 max_id。如果用户手动删除了 CSV 的最后几行，可能会导致逻辑混乱。可以考虑将 last_processed_id 存储在一个单独的轻量级状态文件（如 .state 或
+         .lock）中，与数据文件解耦。
+
+   3. 媒体下载的可选扩展
+       * 虽然全量下载媒体很重，但可以增加一个“仅下载图片”或“下载缩略图”的开关，并将本地路径写入 CSV，这样能大大提升归档的可读性。
+
+   4. 回复关系的直观化
+       * 在 CSV 中除了 reply_to_msg_id，如果能尝试解析并冗余一列 reply_to_text (被回复消息的摘要)，用户体验会提升很多，尽管这会增加 API 请求或内存缓存的复杂度。
+
+  总结
+
+  TG-Exporter v0.3.1 是一个完成度很高的 MVP+ 级产品。它精准地解决了一个核心问题：高效、持续地备份群组文本消息。其架构设计（特别是增量追加模式）为长期稳定运行打下了坚实基础。
+
+  如果你现在的目标是稳定性和易用性，目前的范围非常合适。如果未来要通过 activate_skill 或其他方式扩展，建议优先考虑 JSON 格式支持 或 更精细的时间段过滤。
+  
+  
+  基于你提供的 DESIGN.md 和 README.md 文件内容，我对 TG-Exporter (v0.3.1) 项目的功能范围和架构设计进行了客观分析。
+
+  总体来说，这是一个定位清晰、架构合理且实用性强的垂直领域工具。它没有试图做一个“大而全”的 Telegram 客户端，而是专注于“数据归档”这一核心需求，并在 v0.3.1 版本中通过“增量更新”和“CLI
+  支持”解决了实际使用中的痛点。
+
+  以下是详细的分析意见：
+
+  1. 核心优势与亮点
+
+   * 极具实用价值的存储策略变更 (v0.3.1)
+       * 从“覆盖”到“追加”: 设计文档中提到的存储策略变更（从“新到旧覆盖”改为“旧到新追加”）是该项目最成熟的决策。对于日志型数据（聊天记录），追加写入 (Append Mode)
+         不仅符合数据的时间线性质，更是实现高效增量备份的基础。这意味着用户可以每天运行一次脚本，只拉取当天的几百条消息，而不是重新拉取过去几年的数万条数据。
+       * 抗限流与低内存: 流式写入 (flush) 和对 FloodWaitError 的处理，表明项目充分考虑了 Telegram API 的限制和大规模数据导出的稳定性。
+
+   * 优秀的工程化落地
+       * 配置分层: 实现了 CLI Args > .env > Defaults 的经典配置优先级。这使得工具既适合作为定时任务（cronjob）长期运行（读取 .env），也适合临时性的手动操作（通过 CLI 参数覆盖）。
+       * 数据交付友好: 特别强调 UTF-8-SIG 编码以兼容 Excel，这是一个非常“接地气”的细节，解决了非技术人员查看数据的痛点。
+
+  2. 功能范围边界 (Scope Boundaries)
+
+  项目目前的边界界定非常明确，这是一种克制的优点，但也意味着某些场景无法覆盖：
+
+   * 内容边界：重文本，轻媒体
+       * 当前: 仅提取文本，多媒体被转换为标签（如 [图片], [文件]）。
+       * 分析: 这极大降低了工具的复杂度和存储压力。对于仅需要“搜索历史记录”或“文本分析”的用户来说足够了。但对于希望完整备份（包括表情包、视频、文档）的用户，此工具的功能是不完整的。
+
+   * 格式边界：单一 CSV
+       * 当前: 仅支持 CSV 格式。
+       * 分析: CSV 适合表格查看和简单统计，但难以保留消息的层级结构（如回复关系 reply_to 虽有 ID 但不直观）、富文本格式（粗体、链接）以及复杂的元数据（JSON 格式通常更适合此类数据）。
+
+   * 筛选边界：基于 ID 的线性筛选
+       * 当前: 主要是基于 min_id 的增量筛选和 limit 数量限制。
+       * 分析: 缺乏基于“时间范围”（如：只导出2023年的消息）或“发送者”（如：只导出某人的消息）的筛选功能。目前的增量机制是“从上次结束的地方继续”，而不是“任意指定时间段”。
+
+  3. 潜在改进方向 (建议)
+
+  基于现有架构，以下功能扩展属于“低成本高收益”：
+
+   1. 富文本/结构化导出 (JSON Support)
+       * CSV 在处理换行符和复杂元数据时有局限性。增加一个 --format json 选项，将原始 API 响应清洗后存为 JSONL (JSON Lines) 格式，更有利于后续的数据分析或导入其他系统。
+
+   2. 更灵活的断点控制
+       * 目前依赖扫描 CSV 文件获取 max_id。如果用户手动删除了 CSV 的最后几行，可能会导致逻辑混乱。可以考虑将 last_processed_id 存储在一个单独的轻量级状态文件（如 .state 或
+         .lock）中，与数据文件解耦。
+
+   3. 媒体下载的可选扩展
+       * 虽然全量下载媒体很重，但可以增加一个“仅下载图片”或“下载缩略图”的开关，并将本地路径写入 CSV，这样能大大提升归档的可读性。
+
+   4. 回复关系的直观化
+       * 在 CSV 中除了 reply_to_msg_id，如果能尝试解析并冗余一列 reply_to_text (被回复消息的摘要)，用户体验会提升很多，尽管这会增加 API 请求或内存缓存的复杂度。
+
+  总结
+
+  TG-Exporter v0.3.1 是一个完成度很高的 MVP+ 级产品。它精准地解决了一个核心问题：高效、持续地备份群组文本消息。其架构设计（特别是增量追加模式）为长期稳定运行打下了坚实基础。
+
+  如果你现在的目标是稳定性和易用性，目前的范围非常合适。如果未来要通过 activate_skill 或其他方式扩展，建议优先考虑 JSON 格式支持 或 更精细的时间段过滤。
+  
+  
+  你将我初步的想法整理得比较清楚。基本上符合我的需求。 关于细化设计，1、调度建议是一直在后台运行， 是否也可以同时支持手动运行？ 2、只存链接，
+  但建议是保存csv格式，这样msg的元数据也可以同时保存；3、自动去重只留一条；4、需要提供批量处理过去的历史消息。  我们继续进行讨论
+
+  Responding with gemini-3-pro-preview
+✦ 很高兴我的整理符合你的预期。既然方向已定，我们现在深入讨论具体的架构设计和技术实现方案，特别是针对你提出的四点细化需求。
+
+  我将这个系统正式命名为 TG-Link-Dispatcher。以下是针对你反馈的详细设计方案：
+
+  1. 核心架构升级：任务驱动模型 (Task-Driven Architecture)
+
+  为了同时支持“后台常驻”、“手动运行”和“多目录分发”，我们将代码架构从“单一脚本”升级为“任务驱动”。
+
+  配置文件设计 (config.yaml)
+  这是整个调度器的大脑。我们将使用 YAML 替代 ENV 来配置复杂的路由规则。
+
+    1 # 全局配置
+    2 settings:
+    3   session_name: "dispatcher_session"
+    4   api_id: 123456            # 也可以从环境变量读取
+    5   api_hash: "abcdef..."     # 也可以从环境变量读取
+    6   loop_interval: 600        # 后台模式下，每 10 分钟轮询一次
+    7   deduplication: true       # 全局去重开关
+    8
+    9 # 平台特征定义 (可扩展)
+   10 patterns:
+   11   twitter: ["x.com", "twitter.com"]
+   12   wechat: ["mp.weixin.qq.com"]
+   13   douyin: ["douyin.com", "v.douyin.com"]
+   14   youtube: ["youtube.com", "youtu.be"]
+   15
+   16 # 调度任务列表 (核心)
+   17 tasks:
+   18   - name: "Twitter_Collection"
+   19     enable: true
+   20     source_channels: [-10012345678, -10087654321]  # 监听的群组 ID 列表
+   21     target_platforms: ["twitter"]                  # 只提取 Twitter 链接
+   22     output_file: "./data/twitter/links.csv"        # 结果存放在这里
+   23
+   24   - name: "Video_Archive"
+   25     enable: true
+   26     source_channels: [-10099999999]
+   27     target_platforms: ["douyin", "youtube"]        # 混合收集抖音和油管
+   28     output_file: "./data/videos/watch_list.csv"
+   29
+   30   - name: "All_WeChat"
+   31     enable: true
+   32     source_channels: ["all"]                       # 特殊关键词，监听所有已知群组
+   33     target_platforms: ["wechat"]
+   34     output_file: "./data/articles/wechat.csv"
+
+  ---
+
+  2. 关键功能实现方案
+
+  A. 运行模式 (后台 vs 手动)
+  我们将通过命令行参数控制运行模式，复用同一套核心逻辑。
+
+   * 手动模式 (默认):
+       * 命令: python main.py --run-once
+       * 行为: 读取配置 -> 遍历所有任务 -> 对每个任务执行一次增量拉取 -> 处理完毕后程序退出。适合调试或配合系统级 Crontab 使用。
+   * 后台守护模式:
+       * 命令: python main.py --daemon
+       * 行为: 启动后进入 While True 循环 -> 执行所有任务 -> 休眠 loop_interval 秒 -> 重复。
+       * 优化: 在休眠期间可以捕获 Ctrl+C 信号以优雅退出。
+
+  B. CSV 存储与元数据
+  CSV 将包含丰富的元数据，方便后续分析。
+  CSV表头设计:
+
+  ┌───────────────────────┬─────────────────────┬────────────────────┬────────────────────┬─────────────────┬───────────────────┬─────────────────────────────┐
+  │ 抓取时间 (fetched_at) │ 消息时间 (msg_date) │ 来源群组 (chat_id) │ 发送者 (sender_id) │ 平台 (platform) │ 链接 (url)        │ 原始文本片段 (text_snippet) │
+  ├───────────────────────┼─────────────────────┼────────────────────┼────────────────────┼─────────────────┼───────────────────┼─────────────────────────────┤
+  │ 2026-02-01 10:00      │ 2026-02-01 09:55    │ -100123...         │ 12345...           │ twitter         │ https://x.com/... │ 推荐大家看这个...           │
+  └───────────────────────┴─────────────────────┴────────────────────┴────────────────────┴─────────────────┴───────────────────┴─────────────────────────────┘
+
+  C. 智能去重策略 (Deduplication)
+  这是最棘手的部分。为了保证“自动去重只留一条”，我们需要确定去重的范围和标准。
+
+   * 去重标准 (URL清洗):
+       * 原始链接通常带有追踪参数，如 https://x.com/post/123?utm_source=abc&s=20。
+       * 策略: 在比对前，程序会自动清洗 URL，去除 ? 及其后面的参数（对于大多数内容链接适用），只保留 https://x.com/post/123 作为唯一标识符 (Unique Key)。
+   * 去重范围:
+       * 文件级去重 (当前方案): 针对每个 output_file，在写入前，程序会快速读取该 CSV 中已有的 URL 列并在内存中构建一个 Set。新抓取的 URL 如果在 Set 中则丢弃。
+       * 优点: 简单、准确，保证同一个文件里不重复。
+       * 缺点: 如果文件极大（百万行），启动会变慢。但对于文本链接来说，百万行也仅几十MB，内存完全可控。
+
+  D. 历史消息批量处理
+  利用现有的增量机制 (min_id) 加上一个新的参数逻辑。
+
+   * 首次运行: 任务对应的 CSV 不存在 -> 程序默认开启“追赶模式”，从该群组可见的第一条消息开始遍历（或设置一个默认限制，如最近 1000 条）。
+   * 后续运行: CSV 已存在 -> 读取 CSV 中记录的该任务的 max_message_id -> 只拉取这之后的消息。
+   * 强制回溯: 可以在 CLI 中提供 --backfill 10000 参数，强制往回再查 10000 条，用于补充漏掉的历史数据。
+
+  ---
+
+  3. 下一步行动计划
+
+  如果这个详细设计没有问题，我建议按以下步骤开始实施代码改造：
+
+   1. Phase 1: 配置与模型构建
+       * 引入 PyYAML。
+       * 定义 Task 数据结构。
+       * 创建 config.yaml 模板。
+   2. Phase 2: 核心解析器开发
+       * 编写 URLParser 类，负责从文本中提取 URL、清洗参数、识别平台。
+   3. Phase 3: 调度与存储
+       * 改造 Exporter 类，使其支持多文件写入和文件级去重。
+       * 实现主循环逻辑（Daemon/Run-once）。
+       
+       
+       
+       关于去重标准 (URL清洗)，当前的代码实现是用什么方案？ 你对此的意见是什么？
+
+  Responding with gemini-3-pro-preview
+╭─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ ✓  ReadFile app/parser.py                                                                                                                                                               │
+│                                                                                                                                                                                         │
+│                                                                                                                                                                                         │
+│ ✓  ReadFile app/exporter.py                                                                                                                                                             │
+│                                                                                                                                                                                         │
+╰─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+✦ 当前代码现状分析
+  经过检查 app/parser.py 和 app/exporter.py，当前代码并没有任何 URL 清洗或基于内容的去重机制。
+
+   1. URL 处理:
+       * clean_content(msg) 函数非常基础，它只是简单地返回 msg.text.strip()（原始文本）。它不会提取 URL，也不会清洗参数。
+   2. 去重机制:
+       * exporter.py 中的 get_last_id() 仅实现了基于 Telegram message_id 的增量更新。这意味着如果同一条链接被不同的人转发了 10 次（产生 10 个不同的 message_id），你的文件里就会有 10
+         条重复记录。
+
+  ---
+
+  我的建议：URL 清洗与去重策略
+
+  针对你“只留一条”的需求，我们需要引入一个新的 `URLCleaner` 类和更智能的 指纹去重 (Fingerprinting) 机制。
+
+  1. 为什么不能“一刀切”去除 URL 参数？
+  简单粗暴地去除 ? 后面的所有内容是不安全的：
+   * 对于 Twitter/X, Douyin: 大部分参数是追踪用的 (?s=20, ?utm_source=...)，去掉是安全的，也是推荐的。
+   * 对于 WeChat (公众号): 它的链接结构通常是 mp.weixin.qq.com/s?__biz=MzI...。参数本身就是文章 ID 的一部分。如果去掉 ? 及其后续，所有微信文章链接都会变成同一个死链接 mp.weixin.qq.com/s。
+
+  2. 推荐的清洗方案 (Smart Cleaning)
+
+  我们需要针对不同平台实现不同的清洗策略（Strategy Pattern）。
+
+   * Twitter/X (`x.com`, `twitter.com`):
+       * 保留路径 (Path)。
+       * 移除所有 Query Parameters (如 ?s=, ?t=)。
+       * 结果：x.com/user/status/123456
+
+   * Douyin (`douyin.com`):
+       * 通常分享出来的短链接（v.douyin.com/xxx）需要先跟随重定向才能拿到真实 ID，或者直接存储短链。
+       * 如果拿到的是长链，通常可以移除大部分参数，但需保留视频 ID。
+       * 建议：初期先只做“去除通用追踪参数（utm_*, share_*）”，保留其他未知参数以防链接失效。
+
+   * WeChat (`mp.weixin.qq.com`):
+       * 必须保留 __biz, mid, idx, sn 这四个核心参数。
+       * 可以移除 chksm, scene, mpshare 等追踪参数。
+       * 或者为了安全起见，对微信链接不做参数清洗，仅做全文本去重。
+
+  3. 推荐的去重方案 (Canonical Deduplication)
+
+  在写入 CSV 之前，执行以下逻辑：
+
+   1. 提取: 从消息文本中正则提取出 URL。
+   2. 清洗: 根据域名调用对应的清洗函数，生成 canonical_url (规范化 URL)。
+   3. 比对:
+       * 程序启动时，先读取目标 CSV 文件的所有行，将已存在的 canonical_url 加载到一个内存集合 existing_urls_set 中。
+       * 新消息到来 -> 清洗得到 URL -> 检查是否在 set 中。
+       * 不在 -> 写入 CSV -> 加入 set。
+       * 在 -> 跳过 (Log: "Duplicate link ignored")。
+
+  ---
+
+  下一步的开发计划修正
+
+  基于这个讨论，我们在之前的计划中增加一个关键步骤：
+
+   1. Phase 1: 配置与模型 (保持不变)
+   2. Phase 2: 核心解析器开发 (重点增强)
+       * 新增 app/url_cleaner.py: 实现针对 Twitter, WeChat, Douyin 的差异化清洗逻辑。
+       * 修改 app/parser.py: 集成 URL 提取功能。
+   3. Phase 3: 调度与存储
+       * 修改 exporter.py: 增加 load_existing_urls() 方法来实现内容级去重。
+
+  你是否同意采用这种差异化清洗（Twitter 强清洗，WeChat 弱清洗/不清洗）的策略？如果同意，我们可以开始着手 Phase 1 的配置结构设计了。
+  
+  
+  
+  关于url清洗去重， 等否有一种实现方式是可以灵活配置， 通过样本库中不同的样本（对应不同的内容平台url），动态管理url的清洗逻辑，你的看法呢
+
+  Responding with gemini-3-pro-preview
+✦ 这是一个非常具有前瞻性的想法！你实际上是想构建一个基于规则配置的 URL 标准化引擎 (Rule-based URL Normalization Engine)，而不是将清洗逻辑硬编码在 Python 代码里。
+
+  这个思路非常好，它将“业务逻辑”（如何清洗）与“程序逻辑”（执行清洗）解耦了。当未来某个平台（比如 X 或 抖音）改变了 URL 结构时，你只需要更新配置文件，而不需要修改并重新部署代码。
+
+  动态清洗配置方案
+
+  我们可以设计一个灵活的规则系统，在 YAML 配置文件中定义每个平台的 URL 结构和清洗策略。
+
+  1. 配置文件设计 (rules.yaml)
+
+  我们可以使用正则表达式和参数白名单/黑名单来定义规则。
+
+    1 # rules.yaml - URL 清洗与路由规则库
+    2
+    3 platforms:
+    4   # --- Twitter / X ---
+    5   twitter:
+    6     domains: ["twitter.com", "x.com"]
+    7     match_pattern: 'https?://(www\.)?(twitter\.com|x\.com)/[a-zA-Z0-9_]+/status/[0-9]+'
+    8     normalization:
+    9       mode: "whitelist_params"  # 策略：只保留白名单参数
+   10       params: []                # 空列表意味着移除所有参数 (Twitter ID 在路径里，不需要参数)
+   11
+   12   # --- WeChat ---
+   13   wechat:
+   14     domains: ["mp.weixin.qq.com"]
+   15     match_pattern: 'https?://mp\.weixin\.qq\.com/s.*'
+   16     normalization:
+   17       mode: "whitelist_params"  # 策略：只保留核心参数，移除追踪参数
+   18       params: ["__biz", "mid", "idx", "sn"]
+   19
+   20   # --- Douyin (Video) ---
+   21   douyin:
+   22     domains: ["douyin.com"]
+   23     match_pattern: 'https?://(www\.)?douyin\.com/video/[0-9]+'
+   24     normalization:
+   25       mode: "blacklist_params"  # 策略：移除黑名单参数
+   26       params: ["utm_source", "utm_campaign", "share_token"]
+   27
+   28   # --- Generic (默认兜底) ---
+   29   default:
+   30     normalization:
+   31       mode: "blacklist_params"
+   32       params: ["utm_source", "utm_medium", "utm_campaign", "fbclid"] # 移除常见的通用追踪参数
+
+  2. 实现逻辑
+
+  程序 (URLCleaner) 运行时会加载这个 YAML，并根据配置动态生成处理逻辑：
+
+   1. 匹配 (Matching): 拿到一个 URL，遍历 platforms。检查域名是否匹配 domains，或者 URL 字符串是否匹配 match_pattern 正则。
+   2. 处理 (Normalization):
+       * Strip All Params: 如果配置了 params: [] 且模式是白名单，直接丢弃 ? 后面的所有内容。
+       * Keep Specific: 解析 Query String，只保留 params 列表中定义的键值对，重新组装 URL。
+       * Remove Specific: 解析 Query String，移除 params 列表中定义的键值对。
+
+  3. 这种方案的优缺点
+
+   * 优点:
+       * 极高的灵活性: 添加新平台（如 Bilibili）或修改现有规则完全不需要动 Python 代码。
+       * 透明: 规则写在 YAML 里，一目了然。
+       * 易测试: 你可以建立一个 test_urls.txt 样本库，写一个小脚本读取 YAML 规则批量跑测试，验证清洗效果。
+
+   * 缺点:
+       * 性能开销: 动态解析正则和参数比硬编码稍微慢一点点（但在 Python 的 GIL 下，网络 IO 才是瓶颈，这点 CPU 开销可以忽略）。
+       * 配置复杂度: 复杂的规则（如需要 URL Decode 再提取深层参数的情况）可能很难用简单的 YAML 表达，这时候可能还是需要“自定义插件/函数”的支持。
+
+  结论与建议
+
+  鉴于你的需求是“灵活配置”和“动态管理”，我强烈建议采用这种基于 YAML 规则引擎的方案。
+
+  如果遇到 YAML 规则无法覆盖的极端复杂情况（比如某些短链接需要网络请求去解开），我们可以在代码中保留一个 custom_handlers 接口作为逃生舱，但 99% 的主流平台都可以通过上述的
+  whitelist/blacklist params 逻辑解决。
+  
+  
+  
+  
+  关于url清洗查重， 清洗一般需要达到什么样的程度， 结果是什么
+
+  Responding with gemini-3-pro-preview
+✦ 关于 URL 清洗去重，“清洗程度”和“结果”是决定去重效果好坏的关键。
+
+  简单来说，清洗的目标是将所有指向“同一个内容”的不同链接，变成“完全一样”的字符串。
+
+  1. 为什么要清洗？（清洗的程度）
+
+  同一个网页内容，在互联网上可能有无数种链接写法。如果不清洗，简单的字符串比对（==）会认为它们是不同的，从而导致重复存储。
+
+  我们需要清洗掉以下三类干扰信息：
+
+  A. 追踪参数 (Tracking Params) —— 必须清洗
+  这是最常见的“垃圾信息”。
+   * 例子: ?utm_source=twitter, ?share_from=ios, ?t=123456
+   * 影响: 内容完全一样，只是来源不同。
+   * 程度: 必须全部移除。
+
+  B. 协议与前缀 (Protocol & Prefix) —— 建议标准化
+   * 例子:
+       * http://www.example.com
+       * https://example.com
+       * https://m.example.com (移动端域名)
+   * 影响: 都是同一个网站。
+   * 程度: 通常统一为 https，并根据情况决定是否移除 www. 或 m.（例如推特 x.com 和 twitter.com 指向同一平台，也需要归一化）。
+
+  C. 锚点与哈希 (Anchors/Fragments) —— 视情况而定
+   * 例子: .../article#section-2
+   * 影响: 指向同一页面的不同位置。
+   * 程度: 绝大多数情况下，为了去重内容，应该移除 # 后面的所有内容。
+
+  ---
+
+  2. 清洗后的结果 (Result: Canonical URL)
+
+  清洗的产物被称为 Canonical URL (规范化链接)。这就是我们在数据库或 CSV 去重时使用的唯一指纹。
+
+  让我们看几个具体的平台案例：
+
+  案例 1：Twitter / X
+   * 原始链接 1: https://x.com/username/status/123456789?s=20
+   * 原始链接 2: https://twitter.com/username/status/123456789?t=AbCdEf&s=09
+   * 清洗程度:
+       * 域名归一化: 统一为 x.com 或 twitter.com。
+       * 参数移除: 移除所有 ? 后的参数。
+   * 最终结果: https://twitter.com/username/status/123456789
+
+  案例 2：Bilibili 视频
+   * 原始链接: https://www.bilibili.com/video/BV1xx411c7mD/?spm_id_from=333.788&vd_source=...
+   * 清洗程度:
+       * 保留核心路径 BV1xx411c7mD。
+       * 移除所有追踪参数 spm_id_from, vd_source。
+       * 移除末尾斜杠 /。
+   * 最终结果: https://www.bilibili.com/video/BV1xx411c7mD
+
+  案例 3：微信公众号 (最特殊)
+   * 原始链接: https://mp.weixin.qq.com/s?__biz=MzI1...&mid=2247...&idx=1&sn=abc...&chksm=...&scene=21#wechat_redirect
+   * 清洗程度:
+       * 核心参数必须保留: __biz (公众号ID), mid (消息ID), idx (位置), sn (签名)。
+       * 垃圾参数必须移除: chksm, scene, mpshare, srcid。
+       * 排序: URL 参数的顺序可能不同（a=1&b=2 vs b=2&a=1），需要将参数按字母顺序重排。
+   * 最终结果: https://mp.weixin.qq.com/s?__biz=MzI1...&idx=1&mid=2247...&sn=abc... (参数已排序且干净)
+
+  ---
+
+  总结
+
+   * 清洗程度: "最小有效集" (Minimum Viable Identification)。只保留能唯一定位该内容的最小参数集合，移除一切与内容无关的装饰性参数。
+   * 结果: 一个纯净的、标准化的字符串。
+       * 对于 Twitter/Douyin/Youtube: 通常是 域名/ID。
+       * 对于 WeChat/淘宝/Amazon: 通常是 域名/路径?关键参数1=a&关键参数2=b。
+
+  我们在 rules.yaml 中配置的规则，就是为了告诉程序“对这个平台，什么才是它的最小有效集”。
+  
+  
+  
+  
+  我的决定是先不考虑url清洗和查重，先把重点放在不同msg的路由分发这个功能点上，以及可灵活插入/消除的msg（对应路由）配置实现上
+
+  Responding with gemini-3-pro-preview
+✦ 明白，非常务实的决策。先跑通“路由分发”这个核心骨架，后续再填充“清洗去重”这个血肉。这样可以更快看到效果。
+
+  那我们将开发重点锁定在：“多任务配置” + “关键词路由” + “多文件存储”。
+
+  我们将执行以下步骤来实现这一目标：
+
+  1. 引入依赖
+  我们需要安装 PyYAML 来处理配置文件。
+
+  2. 设计 config.yaml (路由规则表)
+  我们跳过 rules.yaml，直接在 config.yaml 中通过关键词 (keywords) 来定义路由规则。
+
+  配置草案:
+
+    1 # 全局设置
+    2 settings:
+    3   session_name: "tg_dispatcher"
+    4   loop_interval: 60  # 轮询间隔(秒)
+    5
+    6 # 任务列表：定义从哪里抓(sources)，匹配什么(keywords)，存到哪里(output)
+    7 tasks:
+    8   - name: "Twitter_Collection"
+    9     enable: true
+   10     sources: [-10012345678, -10087654321]  # 监听群组 ID
+   11     keywords: ["twitter.com", "x.com"]     # 只要消息包含这些词，就路由过来
+   12     output_file: "./data/twitter_links.csv"
+   13
+   14   - name: "WeChat_Articles"
+   15     enable: true
+   16     sources: [-10099988877]
+   17     keywords: ["mp.weixin.qq.com"]
+   18     output_file: "./data/wechat_articles.csv"
+   19
+   20   - name: "Douyin_Videos"
+   21     enable: true
+   22     sources: ["all"]                       # 支持监听所有群
+   23     keywords: ["douyin.com"]
+   24     output_file: "./data/douyin.csv"
+
+  3. 代码重构计划
+   1. `app/config.py`: 升级为加载 YAML 文件。
+   2. `app/dispatcher.py` (新): 核心逻辑。
+       * 读取 YAML 中的 tasks。
+       * 遍历任务，针对每个任务的 sources 进行拉取。
+       * 路由逻辑: 简单的 if keyword in message.text。
+       * 将匹配的消息写入该任务指定的 output_file。
+   3. `main.py`: 修改为调度器的入口，支持 Daemon (循环) 模式。
+   
+   
+   
+   
+   请将整体的体系架构和数据流程的完整设计草拟出来， 我们以此为基础讨论
+
+  Responding with gemini-3-pro-preview
+✦ 好的，基于我们刚才达成的一致意见（暂缓去重清洗，聚焦路由分发与灵活配置），我为你草拟了 TG-Link-Dispatcher (v1.0) 的完整体系架构与数据流程设计。
+
+  这份文档将作为我们下一步开发的蓝图。
+
+  TG-Link-Dispatcher 体系架构与数据流设计 (v1.0)
+
+  1. 系统概述 (Overview)
+  本系统是一个多源、多规则的消息路由引擎。它监听指定的 Telegram
+  群组，根据用户定义的规则（关键词/域名）对消息进行筛选，并将命中的消息分发到不同的本地文件中。系统支持通过修改配置文件灵活地“热插拔”路由规则。
+
+  2. 逻辑架构 (Logical Architecture)
+
+  我们将系统划分为四个核心层级：
+
+    1 graph TD
+    2     subgraph "配置层 (Configuration)"
+    3         Config[config.yaml] -->|加载| TaskManager[任务管理器]
+    4     end
+    5
+    6     subgraph "采集层 (Ingestion)"
+    7         TG[Telegram Server] -->|API| Client[Telegram Client]
+    8         TaskManager -->|订阅源列表| Client
+    9     end
+   10
+   11     subgraph "路由层 (Routing Core)"
+   12         Client -->|原始消息| Router[路由分发器]
+   13         TaskManager -->|分发规则| Router
+   14         Router -->|匹配成功| Handler[消息处理器]
+   15     end
+   16
+   17     subgraph "存储层 (Storage)"
+   18         Handler -->|写入| AdapterA[CSV Adapter (Topic A)]
+   19         Handler -->|写入| AdapterB[CSV Adapter (Topic B)]
+   20         Handler -->|写入| AdapterC[TXT Adapter (Topic C)]
+   21     end
+
+  3. 详细数据流程 (Data Flow Pipeline)
+
+  这是单条消息在系统中的生命周期：
+
+   1. 配置加载 (Load Phase):
+       * 程序启动，读取 config.yaml。
+       * 解析出 N 个 Task（例如："推特监控", "微信存档"）。
+       * 提取所有 Task 需要监听的 Source Channel IDs 去重合集。
+
+   2. 消息采集 (Ingestion Phase):
+       * Client 遍历目标 Channel。
+       * 增量检查: 对于每个 Channel，获取上次处理到的 min_id。
+       * 拉取新消息列表 [Msg1, Msg2, Msg3...]。
+
+   3. 路由匹配 (Routing Phase):
+       * 系统取出一条消息 Msg1。
+       * 遍历所有 Task:
+           * 检查 Msg1.chat_id 是否在 Task 的监听列表里？ -> No: 跳过。
+           * 检查 Msg1.text 是否包含 Task 定义的 keywords？ -> No: 跳过。
+           * -> Yes (命中): 将 Msg1 标记为待写入该 Task 的目标文件。
+       * 注意: 一条消息可能同时命中多个 Task（例如一条推特链接同时被“推特监控”和“加密货币观察”两个任务捕获），系统应支持 1:N 分发。
+
+   4. 持久化 (Persistence Phase):
+       * 根据路由结果，调用对应的 Writer 打开目标文件（如 ./data/twitter.csv）。
+       * 将消息格式化（清洗换行符等）并追加写入。
+       * 更新该 Channel 的 checkpoint (断点记录)，确保下次不重复拉取。
+
+  4. 配置文件设计 (Flexible Configuration)
+
+  这是用户交互的核心界面。通过修改此文件即可实现“插入/消除”路由。
+
+    1 # config.yaml 示例
+    2
+    3 settings:
+    4   session_name: "dispatcher_bot"
+    5   loop_interval: 300   # 5分钟轮询一次
+    6   log_level: "INFO"
+    7
+    8 # 核心路由表
+    9 tasks:
+   10   # 任务 1: 收集所有推特链接
+   11   - name: "Twitter_Feed"
+   12     enable: true
+   13     # 监听源: 可以是具体的 ID 列表
+   14     sources: [-100123456789, -100987654321]
+   15     # 匹配规则: 只要包含以下任一字符串
+   16     keywords: ["twitter.com", "x.com"]
+   17     # 输出: 保存为 CSV
+   18     output:
+   19       path: "./data/social/twitter_feed.csv"
+   20       format: "csv"
+   21
+   22   # 任务 2: 收集微信文章 (灵活插入的新任务)
+   23   - name: "WeChat_Articles"
+   24     enable: true
+   25     sources: [-100555666777]
+   26     keywords: ["mp.weixin.qq.com"]
+   27     output:
+   28       path: "./data/read_later/wechat.txt"
+   29       format: "txt" # 仅保存链接
+   30
+   31   # 任务 3: 特定话题监控 (关键词路由)
+   32   - name: "AI_News"
+   33     enable: false  # 暂时关闭
+   34     sources: ["all"] # 监听所有群
+   35     keywords: ["OpenAI", "ChatGPT", "LLM"]
+   36     output:
+   37       path: "./data/topic_ai.csv"
+   38       format: "csv"
+
+  5. 模块职责划分 (Code Structure)
+
+  为了实现上述设计，建议的代码结构如下：
+
+   * `config.yaml`: 用户配置文件。
+   * `main.py`: 程序入口，负责初始化 Client 和调度循环。
+   * `app/config.py`: (需重写) 负责加载 YAML，校验配置格式。
+   * `app/dispatcher.py`: (核心新模块)
+       * 类 Task: 定义单个任务的数据结构。
+       * 类 Router: 输入消息，返回该消息应该去哪些 Task。
+   * `app/storage.py`: (重构 Exporter)
+       * 不再只写死一个文件。
+       * 根据 Task 的 output.path 动态管理文件句柄。
+   * `app/client.py`: 负责与 Telegram 交互，拉取消息（保持现有大部分逻辑）。
+
+  ---
+
+  讨论点：
+
+   1. 关于 "Source: all": 我在设计中加入了一个 sources: ["all"] 的概念，意为“监听所有已加入的群组”。这对于“全局关键词监控”很有用。你觉得这个特性在第一版中需要吗？还是先只支持显式指定 ID？
+   2. 关于 TXT 格式: 在 TXT 模式下，是只存 URL（一行一个），还是 时间 | 链接？
+   
+   
+   
+   
+   

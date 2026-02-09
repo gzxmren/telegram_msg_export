@@ -1,0 +1,32 @@
+# 链接清洗规则配置
+
+global:
+  # 全局黑名单：无论在哪个平台，只要遇到这些参数，一律删掉
+  default_strip:
+    - utm_source
+    - utm_medium
+    - utm_campaign
+    - utm_content
+    - utm_term
+    - _hsenc
+    - _hsmi
+    - share_id
+
+platforms:
+  # 推特规则
+  - name: "twitter"
+    domains: ["x.com", "twitter.com"]
+    # strategy: strip_all (删掉所有参数)
+    strategy: "strip_all"
+
+  # 微信规则
+  - name: "wechat"
+    domains: ["mp.weixin.qq.com"]
+    # strategy: whitelist (只保留白名单中的参数)
+    strategy: "whitelist"
+    keep:
+      - "__biz"
+      - "mid"
+      - "idx"
+      - "sn"
+      - "chksm"

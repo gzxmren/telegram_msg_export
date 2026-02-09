@@ -1,53 +1,37 @@
-# Telegram 群消息导出工具 (TG-Exporter) 设计文档
+# TG-Link-Dispatcher 设计文档
 
 ## 1. 项目概述
-本项目旨在开发一个轻量级、模块化的 Python 工具，用于批量导出 Telegram 群组的历史消息。
-**v0.3.1 更新**: 引入增量更新机制与命令行参数支持。
+本项目已从简单的 CSV 导出工具演进为**智能消息分拣系统**。最新的 v0.6 版本引入了深度重构的工程化架构，增强了系统的可维护性与扩展性。
 
-## 2. 技术栈选型
-*   **核心协议**: Telethon (MTProto)
-*   **配置**: python-dotenv + **argparse**
-*   **存储**: Native CSV (UTF-8-SIG, Append Mode)
+## 2. 核心架构 (v0.6)
 
-## 3. 核心架构设计
-
-### 逻辑数据流
+### 模块化协作流 (Orchestrator Pattern)
 ```mermaid
-[CLI Args] --覆盖--> [配置加载 (.env)] 
-       ↓
-[客户端连接 (Telethon)]
-       ↓
-[增量检查 (Exporter)] ---> (读取现有 CSV max_id)
-       ↓
-[消息迭代器] <--- (reverse=True, min_id=max_id)
-       ↓
-[解析器] ---> [导出器 (Append Mode)]
+[main_dispatcher.py] (入口)
+       │
+       ▼
+[Dispatcher] (总指挥) 
+       │
+       ├─> [CheckpointManager] (进度持久化)
+       ├─> [ExporterFactory] (导出器生成器)
+       │         └─> [CSVExporter / TXTExporter] (策略模式)
+       │
+       └─> [Message Processing Pipeline]
+                 ├─> [Parser] (协议解析)
+                 └─> [Cleaner] (URL提取与标准化)
 ```
 
-### 关键策略变更 (v0.3.1)
+## 3. 关键机制实现
 
-#### 1. 存储策略 (Storage Strategy)
-*   **以前 (v0.2)**: 覆盖写模式 (`w`)，顺序为“从新到旧”。
-*   **现在 (v0.3.1)**: 追加写模式 (`a`)，顺序为**“从旧到新” (Chronological)**。
-    *   *理由*: 追加模式对于日志型数据（聊天记录）最高效，且能无缝支持增量更新。
+### 3.1 抽象导出层
+利用 **Abstract Base Class (ABC)** 定义导出器接口，强制实现 `write()` 和 `is_duplicate()`。通过 `ExporterFactory` 实现导出格式的动态决定，方便未来增加存储后端（如数据库）。
 
-#### 2. 配置优先级
-1.  命令行参数 (Highest Priority)
-2.  环境变量 (`.env`)
-3.  代码默认值
+### 3.2 智能去重策略
+1.  **加载阶段**: `Exporter` 在 `open()` 时自动加载文件中的现有 URL。
+2.  **验证阶段**: `Dispatcher` 在写入前调用 `exporter.is_duplicate()`。
+3.  **结果**: 确保即使跨账号、跨群组采集，同一个清洗后的规范化 URL 只会存储一次。
 
----
-
-## 4. 模块职责更新
-
-*   **`main.py`**: 集成 `argparse`，处理“全量 vs 增量”的决策逻辑。
-*   **`app/exporter.py`**: 新增 `get_last_id()` 扫描文件断点；支持 `mode='a'` 追加写入。
-*   **`app/config.py`**: 新增 `FORCE_FULL_FETCH` 开关。
-
----
-
-## 5. 版本迭代历史
-*   **v0.1 MVP**: 连通性验证。
-*   **v0.2 Core**: 基础 CSV 导出。
-*   **v0.3 Stable**: 流式写入与抗限流。
-*   **v0.3.1 Advanced**: 增量更新与 CLI 支持。
+## 4. 版本迭代历史
+*   **v0.4**: 重构 Dispatcher，支持多源采集与关键词路由。
+*   **v0.5**: 引入 JSON 检查点增量机制与 Daemon 守护模式。
+*   **v0.6**: **深度架构重构**。引入设计模式（Factory, Strategy, ABC），实现 URL 标准化清洗与智能去重。

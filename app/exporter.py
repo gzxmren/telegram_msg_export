@@ -1,58 +1,103 @@
 import csv
 import os
+from abc import ABC, abstractmethod
 
-class CSVExporter:
+class BaseExporter(ABC):
+    """导出器抽象基类"""
     def __init__(self, file_path):
         self.file_path = file_path
-        self.fieldnames = ['message_id', 'time', 'sender', 'content', 'reply_to']
         self.file = None
+        self.seen_data = set()
+
+    @abstractmethod
+    def open(self, mode='a'):
+        pass
+
+    @abstractmethod
+    def write(self, data):
+        pass
+
+    @abstractmethod
+    def is_duplicate(self, key):
+        pass
+
+    def close(self):
+        if self.file:
+            self.file.flush()
+            self.file.close()
+            self.file = None
+
+class CSVExporter(BaseExporter):
+    def __init__(self, file_path, fieldnames):
+        super().__init__(file_path)
+        self.fieldnames = fieldnames
         self.writer = None
 
-    def get_last_id(self):
-        """获取文件中最大的 message_id，用于增量更新"""
-        if not os.path.exists(self.file_path):
-            return 0
+    def open(self, mode='a'):
+        directory = os.path.dirname(self.file_path)
+        if directory: os.makedirs(directory, exist_ok=True)
         
-        max_id = 0
+        file_exists = os.path.exists(self.file_path)
+        # 加载历史数据用于去重
+        if mode == 'a' and file_exists:
+            self._load_cache()
+
+        self.file = open(self.file_path, mode, encoding='utf-8-sig', newline='')
+        self.writer = csv.DictWriter(self.file, fieldnames=self.fieldnames)
+        if not file_exists or mode == 'w':
+            self.writer.writeheader()
+
+    def _load_cache(self):
+        """将已有 URL 放入内存集合"""
         try:
             with open(self.file_path, 'r', encoding='utf-8-sig') as f:
                 reader = csv.DictReader(f)
                 for row in reader:
-                    try:
-                        mid = int(row['message_id'])
-                        if mid > max_id:
-                            max_id = mid
-                    except (ValueError, KeyError):
-                        continue
-        except Exception:
-            return 0
-        return max_id
+                    u = row.get('url')
+                    if u: self.seen_data.add(u)
+        except Exception: pass
 
-    def open(self, mode='w'):
-        """初始化文件流
-        mode='w': 覆盖模式 (全量)
-        mode='a': 追加模式 (增量)
-        """
-        # 确保输出目录存在
-        os.makedirs(os.path.dirname(self.file_path), exist_ok=True)
-        
-        file_exists = os.path.exists(self.file_path)
-        write_header = not file_exists or mode == 'w'
+    def is_duplicate(self, url):
+        return url in self.seen_data
 
-        # utf-8-sig 用于解决 Windows Excel 乱码
-        self.file = open(self.file_path, mode, encoding='utf-8-sig', newline='')
-        self.writer = csv.DictWriter(self.file, fieldnames=self.fieldnames)
-        
-        if write_header:
-            self.writer.writeheader()
-
-    def write_row(self, data):
-        """写入单行数据"""
+    def write(self, data):
         if self.writer:
-            self.writer.writerow(data)
+            u = data.get('url')
+            if u: self.seen_data.add(u)
+            # 过滤掉不在表头中的字段
+            filtered = {k: v for k, v in data.items() if k in self.fieldnames}
+            self.writer.writerow(filtered)
 
-    def close(self):
-        """关闭文件"""
+class TXTExporter(BaseExporter):
+    def open(self, mode='a'):
+        directory = os.path.dirname(self.file_path)
+        if directory: os.makedirs(directory, exist_ok=True)
+        if mode == 'a' and os.path.exists(self.file_path):
+            self._load_cache()
+        self.file = open(self.file_path, mode, encoding='utf-8', newline='')
+
+    def _load_cache(self):
+        try:
+            with open(self.file_path, 'r', encoding='utf-8') as f:
+                for line in f:
+                    self.seen_data.add(line.strip())
+        except Exception: pass
+
+    def is_duplicate(self, content):
+        return content.strip() in self.seen_data
+
+    def write(self, data):
         if self.file:
-            self.file.flush()
-            self.file.close()
+            val = data.get('url') or data.get('content', '')
+            val = val.strip()
+            if val and val not in self.seen_data:
+                self.file.write(val + '\n')
+                self.seen_data.add(val)
+
+class ExporterFactory:
+    """导出器工厂"""
+    @staticmethod
+    def create(output_format, file_path, fieldnames):
+        if output_format.lower() == 'txt':
+            return TXTExporter(file_path)
+        return CSVExporter(file_path, fieldnames)
