@@ -1,5 +1,5 @@
 from telethon import TelegramClient
-from app.config import Config
+from app.config import AppConfig as Config
 import sys
 
 async def get_client():

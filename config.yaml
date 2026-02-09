@@ -12,10 +12,18 @@ tasks:
       path: "./data/x/x_url.csv"
       format: "csv"
 
-  - name: "WeChat_Links"
+  - name: "WeChat_GZH"
     enable: true
-    sources: [-5175449542]    # "all" 表示监听所有已配置的群组
+    sources: [-5175449542,-5097290219]    # "all" 表示监听所有已配置的群组
     keywords: ["mp.weixin.qq.com"]
     output:
       path: "./data/wechat/wechat_url.csv"
+      format: "csv"
+      
+  - name: "X_Video"
+    enable: true
+    sources: [-5204811810]    # "all" 表示监听所有已配置的群组
+    keywords: ["twitter.com", "x.com"]
+    output:
+      path: "./data/x/x_video_url.csv"
       format: "csv"

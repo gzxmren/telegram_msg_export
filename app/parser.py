@@ -3,58 +3,59 @@ import pytz
 from telethon import types
 from app.cleaner import cleaner
 
-async def parse_message(message):
-    """解析 Telethon 消息对象，增加 URL 提取功能"""
-    data = {
-        'message_id': message.id,
-        'time': '',
-        'sender': '',
-        'content': '',
-        'reply_to': '',
-        'url': '' # 新增字段
-    }
+from datetime import datetime
+import pytz
+from telethon import types
+from app.cleaner import cleaner
+from app.models import MessageData
 
-    # 1. 转换时间为本地时区
+async def parse_message(message, group_title: str, source_id: str) -> MessageData:
+    """解析 Telethon 消息对象并转换为标准模型"""
+    
+    # 1. 基础信息
+    time_str = ""
     if message.date:
         local_tz = pytz.timezone('Asia/Shanghai')
-        local_time = message.date.astimezone(local_tz)
-        data['time'] = local_time.strftime('%Y-%m-%d %H:%M:%S')
+        time_str = message.date.astimezone(local_tz).strftime('%Y-%m-%d %H:%M:%S')
 
-    # 2. 获取发送者信息
+    # 2. 发送者
+    sender_name = "Unknown"
     sender = await message.get_sender()
     if sender:
-        data['sender'] = getattr(sender, 'username', '') or getattr(sender, 'title', 'Unknown')
+        sender_name = getattr(sender, 'username', '') or getattr(sender, 'title', 'Unknown')
 
-    # 3. 处理回复
-    if message.reply_to:
-        data['reply_to'] = message.reply_to.reply_to_msg_id
-
-    # 4. 提取内容（优先处理媒体，后处理文本）
-    text = message.message or ""
-    
+    # 3. 内容处理
+    raw_text = message.message or ""
+    content = raw_text
     if message.media:
-        media_type = "[媒体内容]"
-        if isinstance(message.media, types.MessageMediaPhoto):
-            media_type = "[图片]"
-        elif isinstance(message.media, types.MessageMediaDocument):
-            media_type = f"[文件/附件]"
-        elif isinstance(message.media, types.MessageMediaWebPage):
-            # 网页预览不视为独立媒体，仅作为文字处理
-            pass
-        else:
-            media_type = f"[{type(message.media).__name__}]"
+        media_type = f"[{type(message.media).__name__.replace('MessageMedia', '')}]"
+        if isinstance(message.media, types.MessageMediaPhoto): media_type = "[图片]"
+        elif isinstance(message.media, types.MessageMediaDocument): media_type = "[文件/附件]"
+        elif isinstance(message.media, types.MessageMediaWebPage): media_type = ""
         
-        if text:
-            data['content'] = f"{media_type} {text}"
-        else:
-            data['content'] = media_type
-    else:
-        data['content'] = text
+        content = f"{media_type} {raw_text}".strip() if media_type else raw_text
 
-    # 5. 核心：提取并清洗 URL
-    urls = cleaner.extract_urls(data['content'])
+    # 4. URL 提取与清洗
+    extracted_url = ""
+    urls = cleaner.extract_urls(content)
     if urls:
-        # 取第一个识别到的链接进行标准化
-        data['url'] = cleaner.normalize(urls[0])
+        extracted_url = cleaner.normalize(urls[0])
 
-    return data
+    # 5. 标题提取 (Native)
+    title = ""
+    if message.media and isinstance(message.media, types.MessageMediaWebPage):
+        wp = message.media.webpage
+        if isinstance(wp, types.WebPage) and wp.title:
+            title = wp.title
+
+    return MessageData(
+        message_id=message.id,
+        time=time_str,
+        sender=sender_name,
+        title=title,
+        url=extracted_url,
+        content=content,
+        source_group=group_title,
+        source_id=source_id,
+        reply_to=message.reply_to.reply_to_msg_id if message.reply_to else None
+    )

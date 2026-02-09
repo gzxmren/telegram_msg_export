@@ -2,3 +2,17 @@ telethon==1.30.0
 python-dotenv==1.0.0
 tqdm==4.66.1
 PyYAML==6.0.1
+pytz
+pydantic
+requests
+fastapi
+uvicorn
+python-jose[cryptography]
+passlib[bcrypt]
+python-multipart
+aiohttp
+beautifulsoup4
+pytest
+pytest-asyncio
+pytest-cov
+httpx

@@ -1,104 +1,75 @@
-# TG-Link-Dispatcher 体系架构与数据流设计 (v1.0)
+# TG-Link-Dispatcher 体系架构与数据流设计 (v1.2)
 
-**日期**: 2026-02-09
-**状态**: 已实现 (Implemented - v0.5)
-**核心目标**: 实现多源消息监听、关键词路由分发及灵活的任务配置。
+**日期**: 2026-02-10
+**状态**: 已实现 (Implemented - v0.8)
+**核心目标**: 实现高可靠的消息处理流水线、Web 化运维及自动化测试保障。
 
 ---
 
 ## 1. 逻辑架构 (Logical Architecture)
 
-系统采用模块化设计，确保路由规则的可插拔性和存储的多样性。
+系统采用分层架构设计，确保每一层职责单一，易于扩展及测试。
 
 ```mermaid
 graph TD
-    subgraph "配置层 (Configuration)"
-        Config[config.yaml] -->|加载| TaskManager[任务管理器]
+    subgraph "管理层 (Management)"
+        Web[FastAPI Web Panel] <--> JWT[JWT Auth]
+        Web <--> Config[Pydantic Config Manager]
+        Web <--> Monitor[Shared Monitor Service]
     end
 
     subgraph "采集层 (Ingestion)"
-        TG[Telegram Server] -->|API| Client[Telegram Client]
-        TaskManager -->|订阅源列表| Client
+        TG[Telegram Server] -->|API| Client[Telethon Client]
+        Dispatcher[Dispatcher Engine] -->|Sync Loop| Client
     end
 
-    subgraph "路由层 (Routing Core)"
-        Client -->|原始消息| Router[路由分发器]
-        TaskManager -->|分发规则| Router
-        Router -->|命中匹配| Handler[消息处理器]
+    subgraph "处理层 (Processing Pipeline)"
+        Dispatcher -->|Raw Message| Parser[Parser Service]
+        Parser -->|Standard Model| Processor[Message Processor]
+        Processor -->|Active Discovery| Metadata[Metadata Provider]
+        Processor -->|Rule Cleaning| Cleaner[URL Cleaner]
     end
 
     subgraph "存储层 (Storage)"
-        Handler -->|写入| CSV_Adapter[CSV 存储适配器]
-        Handler -->|写入| TXT_Adapter[TXT 存储适配器]
+        Processor -->|Validated Data| Exporter[Exporter Factory]
+        Exporter -->|Write| CSV[CSV File with Header Protection]
     end
 ```
 
 ---
 
-## 2. 数据处理流水线 (Data Pipeline)
+## 2. 数据处理流水线 (v1.2 Pipeline)
 
-### 2.1 初始化阶段
-1.  **加载配置**: 解析 `config.yaml` 中的 `tasks` 列表。
-2.  **构建路由表**: 将 `keywords` 与对应的 `output_path` 建立映射关系。
-3.  **确定监听范围**: 合并所有任务的 `sources`，生成去重后的监听群组 ID 集合。
+### 2.1 初始化与发现
+1.  **动态配置加载**: 通过 Pydantic V2 校验 `config.yaml`，支持环境变量覆盖。
+2.  **源自动发现**: `Dispatcher` 根据 `all` 标志或显式 ID 列表，动态获取扫描实体。
 
-### 2.2 消息处理循环
-1.  **拉取消息**: 针对每个监听群组，利用 `min_id` 进行增量抓取。
-2.  **路由分发 (Core Logic)**:
-    - 遍历每条新消息。
-    - 对照所有已启用的 `tasks`。
-    - **匹配条件**: `(chat_id 匹配 sources)` AND `(message_text 包含任一 keywords)`。
-    - **支持 1:N**: 同一条消息若命多个任务，将分发至多个目标文件。
-3.  **持久化**:
-    - **CSV 模式**: 保存完整元数据（时间、发送者、内容、链接）。
-    - **TXT 模式**: 仅提取并保存消息中的链接（每行一个）。
+### 2.2 消息增强流程
+1.  **标准化**: 原始消息通过 `app/parser.py` 转换为 `MessageData` 模型。
+2.  **标题发现 (Active)**: 若 Telegram 原生预览缺失标题，`MetadataProvider` 通过 `aiohttp` 执行受控的异步抓取（3s 超时/缓存）。
+3.  **清洗**: `URLCleaner` 应用正则与规则集，剔除 X/Twitter/WeChat 的追踪参数。
+
+### 2.3 智能路由与查重
+1.  **关键词匹配**: 支持分任务进行内容过滤。
+2.  **文件级查重**: `Exporter` 在写入前检查目标文件内是否已存在该 URL。
+3.  **表头保护**: 自动识别现有 CSV 文件的列顺序，确保新旧数据完美对齐。
 
 ---
 
-## 3. 配置文件规范 (`config.yaml`)
+## 3. 系统职责矩阵
 
-用户通过修改此文件实现任务的“热插拔”。
-
-```yaml
-settings:
-  session_name: "tg_dispatcher"
-  loop_interval: 300    # 轮询间隔（秒）
-  log_level: "INFO"
-
-tasks:
-  - name: "Twitter_Archive"
-    enable: true
-    sources: [-100123456789]
-    keywords: ["twitter.com", "x.com"]
-    output:
-      path: "./data/social/twitter.csv"
-      format: "csv"
-
-  - name: "WeChat_Links"
-    enable: true
-    sources: ["all"]    # "all" 表示监听所有已配置的群组
-    keywords: ["mp.weixin.qq.com"]
-    output:
-      path: "./data/wechat/links.txt"
-      format: "txt"
-```
+| 模块 | 职责 | 实现技术 |
+| :--- | :--- | :--- |
+| `app/models.py` | 全局数据骨架 (SSOT) | Pydantic V2 |
+| `app/processor.py`| 业务逻辑流、插件化扩展 | Python class |
+| `app/web.py` | 管理后台、API、JWT 安全 | FastAPI / jose |
+| `app/metadata.py` | 异步网页元数据抓取 | aiohttp / BeautifulSoup4 |
+| `app/exporter.py` | 安全的文件持久化 | Python standard CSV |
+| `tests/` | 全栈自动化校验 | Pytest / Pytest-asyncio |
 
 ---
 
-## 4. 模块职责定义
-
-| 模块 | 职责 |
-| :--- | :--- |
-| `config.py` | 负责 YAML 配置的解析、验证及任务对象化。 |
-| `client.py` | 处理 Telethon 客户端连接、认证及群组消息的增量拉取。 |
-| `dispatcher.py` | **(核心)** 负责路由逻辑，将消息内容与各任务的关键词进行匹配。 |
-| `storage.py` | 管理不同文件的写入流，支持根据配置动态创建目录和文件。 |
-| `main.py` | 程序主入口，管理 Daemon 循环模式及优雅退出逻辑。 |
-
----
-
-## 5. 待实现关键点
-
-1.  **灵活插入/消除**: 任务的 `enable` 字段控制开关，删除或新增任务条目即可改变路由。
-2.  **路由优先级**: 目前采用平行路由（所有任务均有机会匹配），不设优先级。
-3.  **增量断点管理**: 每个群组（Channel）独立维护 `last_msg_id`，确保不漏抓。
+## 4. 关键设计哲学
+- **Fail-Fast**: 启动时严格校验环境与配置。
+- **Non-blocking**: 所有外部网络请求（Telegram, HTTP 抓取）均采用异步模式。
+- **Visibility**: 任何查重跳过、配置重载操作均有实时日志可查。

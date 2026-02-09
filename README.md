@@ -1,17 +1,17 @@
 # TG-Link-Dispatcher (原 TG-Exporter)
 
-![Version](https://img.shields.io/badge/version-v0.6.0-blue) ![Python](https://img.shields.io/badge/python-3.10+-blue)
+![Version](https://img.shields.io/badge/version-v0.8.0-blue) ![Python](https://img.shields.io/badge/python-3.12+-blue) ![Tests](https://img.shields.io/badge/tests-passing-green)
 
-一个工程化、高扩展性的 Telegram 消息分拣与分发系统。采用 Python 面向对象设计，支持多源采集、智能路由、URL 清洗及长连接守护运行。
+一个生产级、高可维护性的 Telegram 消息分拣与分发系统。采用 Python 模块化设计，支持多源采集、智能路由、网页标题抓取及 Web 控制面板管理。
 
 ## 📋 核心功能 (Current Features)
 
-- **工程化架构 (New)**: 采用工厂模式与抽象基类重构，逻辑高度解耦，支持轻松扩展导出格式（如 Markdown, SQL）。
-- **智能 URL 清洗 (New)**: 基于 `rules.yaml` 自动剔除 X (Twitter) 及微信链接中的追踪参数，还原规范化链接 (Canonical URL)。
-- **智能去重 (New)**: 基于清洗后的链接实现文件级自动去重，确保采集到的信息流“干净无水”。
-- **多源路由分拣**: 自由定义任务规则，根据来源与关键词将消息自动导向不同目录。
-- **增强型断点记忆**: 使用独立的 `CheckpointManager` 记录每个群组的抓取偏移量。
-- **长连接守护模式**: 仅需单次登录，维持稳定长连接进行高频率轮询。
+- **模块化生产架构 (New)**: 逻辑高度解耦，划分为模型层、处理流水线、协议解析层，支持轻松扩展业务逻辑。
+- **Web 控制面板 (New)**: 内置基于 FastAPI 的管理后台，支持实时状态监控、系统日志流、以及在线修改配置文件（支持热重载）。
+- **智能网页标题抓取 (New)**: 自动发现网页标题，优先使用 Telegram 原生预览数据，兜底采用异步非阻塞 HTTP 抓取（带 3s 超时与缓存）。
+- **自动化测试保障 (New)**: 完善的测试套件（Unit & Integration），覆盖率监控，确保大规模数据同步的稳定性。
+- **智能 URL 清洗与去重**: 自动剔除追踪参数并实现文件级去重。
+- **增强型断点记忆**: 独立管理每个群组的抓取偏移量，支持掉线重启后自动续传。
 
 ---
 
@@ -21,74 +21,56 @@
 ```bash
 git clone <your-repo-url>
 cd telegram_msg_export
-# 推荐使用虚拟环境
-python3 -m venv venv
-source venv/bin/activate
+# 推荐使用 Python 3.12+
 pip install -r requirements.txt
 ```
 
 ### 2. 凭证配置 (.env)
-复制模板 `cp .env.example .env` 并填入从 [my.telegram.org](https://my.telegram.org) 获取的 API ID/Hash。
-
-### 3. 任务分发配置 (config.yaml)
-在根目录下配置您的分发任务：
-```yaml
-tasks:
-  - name: "Twitter_Article"
-    enable: true
-    sources: [-100123456789] # 目标群组 ID
-    keywords: ["twitter.com", "x.com"]
-    output:
-      path: "./data/x/x_url.csv"
-      format: "csv"
-
-  - name: "WeChat_Links"
-    enable: true
-    sources: ["all"]         # 监听所有加入的群
-    keywords: ["mp.weixin.qq.com"]
-    output:
-      path: "./data/wechat/articles.csv"
-      format: "csv"
+填入从 [my.telegram.org](https://my.telegram.org) 获取的 API 凭证：
+```env
+API_ID=your_id
+API_HASH=your_hash
+PHONE=+your_phone
+WEB_PASSWORD=admin  # Web 后端登录密码
 ```
 
 ---
 
 ## 🚀 使用指南
 
-### 获取群组 ID
-运行工具脚本查看您账号下的群组列表及对应 ID：
+### 启动所有功能 (推荐)
+启动守护进程模式并开启 Web 控制面板：
 ```bash
-python3 list_chats.py
+python3 main_dispatcher.py --web --daemon
 ```
+访问地址：`http://localhost:8000`
 
-### 运行分发器 (单次同步)
+### 运行测试
+确保任何改动后代码依然稳健：
 ```bash
-python3 main_dispatcher.py
-```
-
-### 运行守护模式 (后台自动轮询)
-```bash
-# 每 10 分钟自动检查一次更新
-python3 main_dispatcher.py --daemon --interval 600
+pytest
 ```
 
 ---
 
-## 📂 目录结构
-- `app/dispatcher.py`: 核心编排引擎 (Orchestrator)。
-- `app/exporter.py`: 抽象导出层 (Factory Pattern)。
-- `app/checkpoint.py`: 增量进度管理器。
-- `app/cleaner.py`: 链接提取与规则清洗器。
-- `data/checkpoint.json`: 存储所有群组的抓取偏移量。
-- `rules.yaml`: 平台 URL 清洗规则。
-- `config.yaml`: 任务分发配置。
+## 📂 模块化目录结构
+- `app/models.py`: 核心数据模型 (MessageData)，定义单一事实来源。
+- `app/processor.py`: 处理流水线，负责数据增强（标题发现）与匹配规则。
+- `app/dispatcher.py`: 任务编排引擎，协调 Telegram 客户端与导出器。
+- `app/metadata.py`: 网页元数据异步抓取服务。
+- `app/web.py`: FastAPI 后端服务。
+- `app/static/`: Web 控制面板前端资源。
+- `tests/`: 自动化测试用例 (Unit/Integration)。
 
 ---
 
-## 📅 开发计划 (Roadmap)
+## 📅 路线图 (Roadmap)
 - [x] **v0.5**: 增量断点管理与 Daemon 模式。
 - [x] **v0.6**: 架构解耦重构、URL 标准化清洗、文件级智能去重。
-- [ ] **v1.0**: Linux Systemd 生产级部署方案、Markdown 格式支持。
+- [x] **v0.7**: 配置管理 Pydantic 化、智能网页标题发现 (Title Discovery)。
+- [x] **v0.8**: **Web 控制面板发布**、自动化测试框架集成、配置热重载。
+- [ ] **v0.9 (Cloud Ready)**: Docker 容器化支持、Prometheus 监控指标支持。
+- [ ] **v1.0 (LTS)**: 长期支持版本、多数据库后端 (SQLite/PostgreSQL) 选配。
 
 ---
 

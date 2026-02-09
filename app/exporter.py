@@ -38,12 +38,22 @@ class CSVExporter(BaseExporter):
         if directory: os.makedirs(directory, exist_ok=True)
         
         file_exists = os.path.exists(self.file_path)
-        # 加载历史数据用于去重
+        
+        # 核心改进：确保列对齐稳定性
         if mode == 'a' and file_exists:
             self._load_cache()
+            # 读取现有文件的表头，如果存在则强制使用它，防止列错位
+            try:
+                with open(self.file_path, 'r', encoding='utf-8-sig') as f:
+                    reader = csv.reader(f)
+                    existing_header = next(reader, [])
+                    if existing_header:
+                        self.fieldnames = existing_header
+            except Exception:
+                pass
 
         self.file = open(self.file_path, mode, encoding='utf-8-sig', newline='')
-        self.writer = csv.DictWriter(self.file, fieldnames=self.fieldnames)
+        self.writer = csv.DictWriter(self.file, fieldnames=self.fieldnames, extrasaction='ignore')
         if not file_exists or mode == 'w':
             self.writer.writeheader()
 
