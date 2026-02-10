@@ -1,5 +1,6 @@
 import logging
 import sys
+from logging.handlers import RotatingFileHandler
 
 def setup_logger():
     """配置全局日志"""
@@ -14,8 +15,14 @@ def setup_logger():
     console_handler.setFormatter(formatter)
     logger.addHandler(console_handler)
 
-    # 输出到文件
-    file_handler = logging.FileHandler("exporter.log", encoding='utf-8')
+    # 输出到文件 (增加自动切片和大小限制)
+    # 每个文件最大 10MB, 保留最近 5 个备份
+    file_handler = RotatingFileHandler(
+        "dispatcher.log", 
+        maxBytes=10 * 1024 * 1024, 
+        backupCount=5, 
+        encoding='utf-8'
+    )
     file_handler.setFormatter(formatter)
     logger.addHandler(file_handler)
 

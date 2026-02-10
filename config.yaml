@@ -23,7 +23,15 @@ tasks:
   - name: "X_Video"
     enable: true
     sources: [-5204811810]    # "all" 表示监听所有已配置的群组
-    keywords: ["twitter.com", "x.com"]
+    keywords: ["twitter.com", "x.com", "vxtwitter.com", "fxtwitter.com"]
     output:
       path: "./data/x/x_video_url.csv"
       format: "csv"
+
+  - name: "Youtube_Video"
+    enable: true
+    sources: [-5298749551]    # "all" 表示监听所有已配置的群组
+    keywords: ["youtube.com", "youtu.be"]
+    output:
+      path: "./data/youtube/youtube_url.csv"
+      format: "csv"     

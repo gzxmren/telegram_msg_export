@@ -31,6 +31,7 @@
 
         .glass {
             background: rgba(22, 22, 26, 0.7);
+            -webkit-backdrop-filter: blur(14px);
             backdrop-filter: blur(14px);
             border: 1px solid rgba(255, 255, 255, 0.05);
             border-radius: 16px;
@@ -52,6 +53,7 @@
         .gradient-text {
             background: linear-gradient(135deg, #818cf8 0%, #c084fc 100%);
             -webkit-background-clip: text;
+            background-clip: text;
             -webkit-text-fill-color: transparent;
         }
 
@@ -143,7 +145,7 @@
                         (rules.yaml)</button>
                 </div>
                 <div class="glass overflow-hidden">
-                    <textarea id="editor"></textarea>
+                    <textarea id="editor" aria-label="Config Editor"></textarea>
                 </div>
                 <div class="flex justify-end gap-4">
                     <span id="save-status" class="text-emerald-400 py-3 hidden">Saved Successfully!</span>
@@ -162,6 +164,11 @@
         let currentEditingFile = 'config';
 
         if (token) init();
+
+        // 支持回车登录
+        document.getElementById('password').addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') login();
+        });
 
         async function login() {
             const pwd = document.getElementById('password').value;
@@ -238,11 +245,15 @@
                     document.getElementById('st-urls').innerText = data.urls_identified;
                     document.getElementById('sys-status').innerText = data.status;
 
+
                     const logContainer = document.getElementById('log-box');
-                    logContainer.innerHTML = data.logs.map(l => `<div class="text-slate-300 transition-all hover:bg-white/5 p-1 rounded"><span class="text-indigo-500 opacity-50 mr-2">#</span>${l}</div>`).join('');
-                    if (logContainer.scrollTop + logContainer.clientHeight > logContainer.scrollHeight - 60) {
-                        logContainer.scrollTop = logContainer.scrollHeight;
-                    }
+                    // Newest logs at the top (monitor.py inserts at index 0)
+                    logContainer.innerHTML = data.logs.map(l => `
+                        <div class="text-slate-300 transition-all hover:bg-white/5 p-1 rounded flex gap-3">
+                            <span class="text-indigo-500/50 font-mono">[${l.time}]</span>
+                            <span class="flex-1">${l.msg}</span>
+                        </div>
+                    `).join('');
                 } catch (e) { }
             }, 2000);
         }

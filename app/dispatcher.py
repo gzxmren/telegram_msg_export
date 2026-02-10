@@ -43,6 +43,8 @@ class Dispatcher:
             self._ensure_exporters()
 
             # 3. 遍历实体进行消息抓取
+            msg = f"🔄 开始分发周期，扫描 {len(entities)} 个源"
+            logger.info(msg) # MonitorLogHandler will pick this up
             for entity in entities:
                 await self._sync_source(active_client, entity)
 
@@ -132,7 +134,10 @@ class Dispatcher:
             monitor.increment("messages_processed", total_fetched)
             
             if current_source_processed > 0:
-                logger.info(f"✅ [{group_title}]: 新增 {current_source_processed} 条记录")
+                msg = f"✅ [{group_title}]: 新增 {current_source_processed} 条记录"
+                logger.info(msg)
+            elif total_fetched > 0:
+                logger.info(f"ℹ️ [{group_title}]: 扫描 {total_fetched} 条消息，无匹配或均为重复")
 
         except FloodWaitError as e:
             logger.warning(f"触发限流，休眠 {e.seconds} 秒")

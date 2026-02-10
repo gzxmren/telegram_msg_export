@@ -13,9 +13,9 @@ global:
     - share_id
 
 platforms:
-  # 推特规则
+  # 推特规则 (包括嵌入式增强域名)
   - name: "twitter"
-    domains: ["x.com", "twitter.com"]
+    domains: ["x.com", "twitter.com", "vxtwitter.com", "fxtwitter.com"]
     # strategy: strip_all (删掉所有参数)
     strategy: "strip_all"
 
@@ -30,3 +30,11 @@ platforms:
       - "idx"
       - "sn"
       - "chksm"
+
+  # YouTube 规则
+  - name: "youtube"
+    domains: ["youtube.com", "youtu.be"]
+    strategy: "whitelist"
+    keep:
+      - "v"  # 核心视频 ID
+      - "t"  # 播放时间点点

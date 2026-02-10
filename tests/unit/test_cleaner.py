@@ -30,6 +30,14 @@ def test_normalize_platform_strip_all():
     normalized = cleaner.normalize(url)
     assert normalized == "https://x.com/user/status/123"
 
+    # Test new i/status format
+    url_v = "https://x.com/i/status/1888463515811123456?s=46"
+    assert cleaner.normalize(url_v) == "https://x.com/i/status/1888463515811123456"
+
+    # Test enhanced domains (vxtwitter)
+    url_vx = "https://vxtwitter.com/user/status/123?tracking=xyz"
+    assert cleaner.normalize(url_vx) == "https://vxtwitter.com/user/status/123"
+
 def test_normalize_platform_whitelist():
     cleaner = URLCleaner()
     cleaner.rules = {
@@ -43,3 +51,24 @@ def test_normalize_platform_whitelist():
     assert "mid=123" in normalized
     assert "sn=" not in normalized
     assert "chksm=" not in normalized
+
+def test_normalize_youtube():
+    cleaner = URLCleaner()
+    cleaner.rules = {
+        "platforms": [
+            {"domains": ["youtube.com", "youtu.be"], "strategy": "whitelist", "keep": ["v", "t"]}
+        ]
+    }
+    # Test youtube.com
+    url1 = "https://www.youtube.com/watch?v=dQw4w9WgXcQ&si=tracking_id&feature=emb_rel_end"
+    norm1 = cleaner.normalize(url1)
+    assert "v=dQw4w9WgXcQ" in norm1
+    assert "si=" not in norm1
+    assert "feature=" not in norm1
+
+    # Test youtu.be
+    url2 = "https://youtu.be/dQw4w9WgXcQ?si=another_id&t=10"
+    norm2 = cleaner.normalize(url2)
+    assert "dQw4w9WgXcQ" in norm2
+    assert "t=10" in norm2
+    assert "si=" not in norm2

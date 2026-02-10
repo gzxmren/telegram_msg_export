@@ -1,0 +1,111 @@
+2026-02-10 22:01:02 - INFO - 🚀 正在启动 Web 控制面板: http://localhost:8000
+2026-02-10 22:01:02 - INFO - 进入守护模式，间隔 300s
+[*] 正在尝试连接 Telegram (手机号: +18135305990)...
+Server sent a very new message with ID 7605236465773456389, ignoring (see FAQ for details)
+Server sent a very new message with ID 7605236465858674689, ignoring (see FAQ for details)
+2026-02-10 22:15:31 - INFO - 🚀 正在启动 Web 控制面板: http://localhost:8000
+2026-02-10 22:15:31 - INFO - 进入守护模式，间隔 300s
+2026-02-10 22:15:31 - INFO - [*] 正在尝试连接 Telegram (手机号: +18135305990)...
+Server sent a very new message with ID 7605240197126380549, ignoring (see FAQ for details)
+Server sent a very new message with ID 7605240197153636353, ignoring (see FAQ for details)
+Server closed the connection: 0 bytes read on a total of 8 expected bytes
+Server sent a very new message with ID 7605240737753401349, ignoring (see FAQ for details)
+Server sent a very new message with ID 7605240737799895041, ignoring (see FAQ for details)
+Server sent a very new message with ID 7605240738570461185, ignoring (see FAQ for details)
+2026-02-10 22:19:00 - INFO - 🚀 正在启动 Web 控制面板: http://localhost:8000
+2026-02-10 22:19:00 - INFO - 进入守护模式，间隔 300s
+2026-02-10 22:19:00 - INFO - [*] 正在尝试连接 Telegram (手机号: +18135305990)...
+Server sent a very new message with ID 7605241093014148101, ignoring (see FAQ for details)
+Server sent a very new message with ID 7605241093048174593, ignoring (see FAQ for details)
+Server closed the connection: 0 bytes read on a total of 8 expected bytes
+Server sent a very new message with ID 7605241633135977477, ignoring (see FAQ for details)
+Server sent a very new message with ID 7605241633156505601, ignoring (see FAQ for details)
+Server sent a very new message with ID 7605241633967851521, ignoring (see FAQ for details)
+Server closed the connection: 0 bytes read on a total of 8 expected bytes
+Server sent a very new message with ID 7605242175759648773, ignoring (see FAQ for details)
+Server sent a very new message with ID 7605242175781122049, ignoring (see FAQ for details)
+Server sent a very new message with ID 7605242175790645249, ignoring (see FAQ for details)
+Server sent a very new message with ID 7605242176532424705, ignoring (see FAQ for details)
+Server sent a very new message with ID 7605242289016828929, ignoring (see FAQ for details)
+Server sent a very new message with ID 7605242321463600129, ignoring (see FAQ for details)
+Server sent a very new message with ID 7605242321469079553, ignoring (see FAQ for details)
+Server sent a very new message with ID 7605242327035802625, ignoring (see FAQ for details)
+Server sent a very new message with ID 7605242567375635457, ignoring (see FAQ for details)
+Server sent a very new message with ID 7605242806014435329, ignoring (see FAQ for details)
+Security error while unpacking a received message: Too many messages had to be ignored consecutively
+Server sent a very new message with ID 7605243045352996865, ignoring (see FAQ for details)
+Security error while unpacking a received message: Too many messages had to be ignored consecutively
+Server sent a very new message with ID 7605243286031635457, ignoring (see FAQ for details)
+Security error while unpacking a received message: Too many messages had to be ignored consecutively
+Server sent a very new message with ID 7605243524755639297, ignoring (see FAQ for details)
+Security error while unpacking a received message: Too many messages had to be ignored consecutively
+2026-02-10 22:30:22 - INFO - 🚀 正在启动 Web 控制面板: http://localhost:8000
+2026-02-10 22:30:22 - INFO - 进入守护模式，间隔 300s
+2026-02-10 22:30:22 - INFO - [*] 正在尝试连接 Telegram (手机号: +18135305990)...
+2026-02-10 22:30:25 - INFO - [+] 登录成功! 当前账号: new (ID: 6395101447)
+2026-02-10 22:30:26 - INFO - 🔄 开始分发周期，扫描 5 个源
+2026-02-10 22:30:26 - INFO - 🔄 扫描: [yt_video] 从 ID: 2012
+2026-02-10 22:30:27 - INFO - 🔄 扫描: [x article] 从 ID: 2005
+2026-02-10 22:30:27 - INFO - 🔄 扫描: [OpenClaw] 从 ID: 2009
+2026-02-10 22:30:27 - INFO - 🔄 扫描: [WeChat] 从 ID: 2014
+2026-02-10 22:30:28 - INFO - 🔄 扫描: [x video] 从 ID: 2013
+2026-02-10 22:30:28 - INFO - 休眠中，等待下一次同步...
+2026-02-10 22:35:30 - INFO - 🔄 开始分发周期，扫描 5 个源
+2026-02-10 22:35:30 - INFO - 🔄 扫描: [yt_video] 从 ID: 2012
+2026-02-10 22:35:30 - INFO - 🔄 扫描: [x article] 从 ID: 2005
+2026-02-10 22:35:30 - INFO - 🔄 扫描: [OpenClaw] 从 ID: 2009
+2026-02-10 22:35:31 - INFO - 🔄 扫描: [WeChat] 从 ID: 2014
+2026-02-10 22:35:31 - INFO - 🔄 扫描: [x video] 从 ID: 2013
+2026-02-10 22:35:31 - INFO - 休眠中，等待下一次同步...
+2026-02-10 22:40:33 - INFO - 🔄 开始分发周期，扫描 5 个源
+2026-02-10 22:40:33 - INFO - 🔄 扫描: [yt_video] 从 ID: 2012
+2026-02-10 22:40:33 - INFO - 🔄 扫描: [x article] 从 ID: 2005
+2026-02-10 22:40:34 - INFO - 🔄 扫描: [OpenClaw] 从 ID: 2009
+2026-02-10 22:40:34 - INFO - 🔄 扫描: [WeChat] 从 ID: 2014
+2026-02-10 22:40:34 - INFO - 🔄 扫描: [x video] 从 ID: 2013
+2026-02-10 22:40:35 - INFO - 休眠中，等待下一次同步...
+2026-02-10 22:45:36 - INFO - 🔄 开始分发周期，扫描 5 个源
+2026-02-10 22:45:36 - INFO - 🔄 扫描: [yt_video] 从 ID: 2012
+2026-02-10 22:45:37 - INFO - 🔄 扫描: [x article] 从 ID: 2005
+2026-02-10 22:45:37 - INFO - 🔄 扫描: [OpenClaw] 从 ID: 2009
+2026-02-10 22:45:37 - INFO - 🔄 扫描: [WeChat] 从 ID: 2014
+2026-02-10 22:45:38 - INFO - 🔄 扫描: [x video] 从 ID: 2013
+2026-02-10 22:45:38 - INFO - 休眠中，等待下一次同步...
+2026-02-10 22:50:33 - INFO - 🔄 开始分发周期，扫描 5 个源
+2026-02-10 22:50:33 - INFO - 🔄 扫描: [yt_video] 从 ID: 2012
+2026-02-10 22:50:33 - INFO - 🔄 扫描: [x article] 从 ID: 2005
+2026-02-10 22:50:35 - INFO - ✅ [x article]: 新增 1 条记录
+2026-02-10 22:50:35 - INFO - 🔄 扫描: [OpenClaw] 从 ID: 2009
+2026-02-10 22:50:35 - INFO - 🔄 扫描: [WeChat] 从 ID: 2014
+2026-02-10 22:50:35 - INFO - 🔄 扫描: [x video] 从 ID: 2013
+2026-02-10 22:50:36 - INFO - 休眠中，等待下一次同步...
+2026-02-10 22:55:37 - INFO - 🔄 开始分发周期，扫描 5 个源
+2026-02-10 22:55:37 - INFO - 🔄 扫描: [yt_video] 从 ID: 2012
+2026-02-10 22:55:39 - INFO - ✅ [yt_video]: 新增 1 条记录
+2026-02-10 22:55:39 - INFO - 🔄 扫描: [x article] 从 ID: 2017
+2026-02-10 22:55:41 - INFO - ✅ [x article]: 新增 1 条记录
+2026-02-10 22:55:41 - INFO - 🔄 扫描: [OpenClaw] 从 ID: 2009
+2026-02-10 22:55:42 - INFO - ✅ [OpenClaw]: 新增 2 条记录
+2026-02-10 22:55:42 - INFO - 🔄 扫描: [WeChat] 从 ID: 2014
+2026-02-10 22:55:44 - INFO - ✅ [WeChat]: 新增 1 条记录
+2026-02-10 22:55:44 - INFO - 🔄 扫描: [x video] 从 ID: 2013
+2026-02-10 22:55:46 - INFO - ✅ [x video]: 新增 1 条记录
+2026-02-10 22:55:46 - INFO - 休眠中，等待下一次同步...
+2026-02-10 22:59:54 - INFO - 🚀 正在启动 Web 控制面板: http://localhost:8000
+2026-02-10 22:59:54 - INFO - 进入守护模式，间隔 300s
+2026-02-10 22:59:54 - INFO - [*] 正在尝试连接 Telegram (手机号: +18135305990)...
+2026-02-10 22:59:59 - INFO - [+] 登录成功! 当前账号: new (ID: 6395101447)
+2026-02-10 23:00:00 - INFO - 🔄 开始分发周期，扫描 5 个源
+2026-02-10 23:00:00 - INFO - 🔄 扫描: [yt_video] 从 ID: 2025
+2026-02-10 23:00:01 - INFO - 🔄 扫描: [x article] 从 ID: 2020
+2026-02-10 23:00:01 - INFO - 🔄 扫描: [OpenClaw] 从 ID: 2026
+2026-02-10 23:00:01 - INFO - 🔄 扫描: [WeChat] 从 ID: 2024
+2026-02-10 23:00:02 - INFO - 🔄 扫描: [x video] 从 ID: 2019
+2026-02-10 23:00:02 - INFO - 休眠中，等待下一次同步...
+2026-02-10 23:05:04 - INFO - 🔄 开始分发周期，扫描 5 个源
+2026-02-10 23:05:04 - INFO - 🔄 扫描: [yt_video] 从 ID: 2025
+2026-02-10 23:05:04 - INFO - 🔄 扫描: [x article] 从 ID: 2020
+2026-02-10 23:05:04 - INFO - 🔄 扫描: [OpenClaw] 从 ID: 2026
+2026-02-10 23:05:04 - INFO - 🔄 扫描: [WeChat] 从 ID: 2024
+2026-02-10 23:05:05 - INFO - 🔄 扫描: [x video] 从 ID: 2019
+2026-02-10 23:05:05 - INFO - 休眠中，等待下一次同步...
