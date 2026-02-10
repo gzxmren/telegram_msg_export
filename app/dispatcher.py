@@ -140,9 +140,19 @@ class Dispatcher:
                 logger.info(f"ℹ️ [{group_title}]: 扫描 {total_fetched} 条消息，无匹配或均为重复")
 
         except FloodWaitError as e:
+            if new_max_id > last_id:
+                self.checkpoint.set(source_id, new_max_id)
             logger.warning(f"触发限流，休眠 {e.seconds} 秒")
             await asyncio.sleep(e.seconds)
+        except (ConnectionError, OSError) as e:
+            if new_max_id > last_id:
+                logger.info(f"⚠️ 连接中断，保存进度 ID: {new_max_id}")
+                self.checkpoint.set(source_id, new_max_id)
+            logger.error(f"❌ 网络连接中断 [{group_title}]: {e}")
+            raise e
         except Exception as e:
+            if new_max_id > last_id:
+                self.checkpoint.set(source_id, new_max_id)
             logger.error(f"同步 [{group_title}] 失败: {e}")
 
     async def _export_to_task(self, task, msg: MessageData) -> bool:

@@ -16,6 +16,7 @@ graph TD
         Web[FastAPI Web Panel] <--> JWT[JWT Auth]
         Web <--> Config[Pydantic Config Manager]
         Web <--> Monitor[Shared Monitor Service]
+        Web <--> CLI[External Tools Integration (IPC)]
     end
 
     subgraph "采集层 (Ingestion)"

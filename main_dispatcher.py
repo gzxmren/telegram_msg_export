@@ -6,6 +6,7 @@ from app.dispatcher import Dispatcher
 from app.client import get_client
 from app.logger import logger
 from app.web import app
+import app.web as web_app_module
 from app.monitor import monitor
 import logging
 
@@ -78,6 +79,8 @@ async def main():
                 # 确保客户端在线
                 if not client or not client.is_connected():
                     client = await get_client()
+                    # 将客户端实例注入到 Web 模块，供 API 使用
+                    web_app_module.telegram_client = client
                 
                 # 执行同步循环
                 await dispatcher.run_cycle(client=client)
@@ -100,6 +103,18 @@ async def main():
                             pass
                         client = None
                     await asyncio.sleep(60)
+                
+                # 网络连接中断处理
+                elif isinstance(e, (ConnectionError, OSError, TimeoutError)) or "Connection reset by peer" in error_msg:
+                    logger.warning(f"⚠️ 网络连接中断，将在 10 秒后重试: {e}")
+                    if client:
+                        try:
+                            await client.disconnect()
+                        except:
+                            pass
+                        client = None
+                    await asyncio.sleep(10)
+
                 else:
                     # 其他错误，简单重试
                     await asyncio.sleep(30)

@@ -6,3 +6,5 @@ output/
 *.log
 .ralph-state/
 data/
+.coverage
+*.log.*

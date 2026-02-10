@@ -41,6 +41,12 @@
 - **实时监控**: 通过单例 `Monitor` 收集全局指标。
 - **配置编辑**: 在线修改 `config.yaml` 后，`Dispatcher` 会在下个周期通过 `Config.load()` 自动检测并动态重载，无需重启程序。
 
+### 3.4 工具链集成 (Tooling & CLI)
+为了解决 SQLite 单一写锁 (`database is locked`) 的问题，v0.8.1引入了 **混合架构 (Hybrid Architecture)**：
+- **CLI 工具 (如 `list_chats.py`)** 优先尝试连接本地 Web API (`/api/chats`) 获取数据。
+- 仅当主程序未运行时，工具才降级为直接读取 Session 文件模式。
+- 这种设计确保了运维操作（如查询群组列表）**无需停止核心采集服务**。
+
 ## 4. 版本迭代历史
 *   **v0.6**: 架构解耦重构，引入设计模式（Factory, Strategy, ABC）。
 *   **v0.7**: 引入 Pydantic 模型、智能网页标题发现 (Title Discovery)。

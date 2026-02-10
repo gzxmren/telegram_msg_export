@@ -37,6 +37,13 @@ class AppConfig:
     PHONE: str = os.getenv("PHONE", "")
     WEB_PASSWORD: str = os.getenv("WEB_PASSWORD", "admin")
 
+    # 代理配置
+    PROXY_TYPE: str = os.getenv("PROXY_TYPE", "")  # SOCKS5, HTTP
+    PROXY_HOST: str = os.getenv("PROXY_HOST", "")
+    PROXY_PORT: int = int(os.getenv("PROXY_PORT", 0))
+    PROXY_USER: str = os.getenv("PROXY_USER", "")
+    PROXY_PASS: str = os.getenv("PROXY_PASS", "")
+
     # 动态加载内容
     tasks: List[TaskModel] = []
     settings: SystemSettings = SystemSettings()
@@ -46,6 +53,8 @@ class AppConfig:
 
     @classmethod
     def load(cls, path: str = "config.yaml"):
+        from app.logger import logger  # 延迟导入避免循环引用
+
         cls._config_path = path
         if not os.path.exists(path):
             return False
@@ -59,15 +68,21 @@ class AppConfig:
                 data = yaml.safe_load(f) or {}
                 
             # 使用 Pydantic 校验并解析内容
-            cls.settings = SystemSettings(**data.get('settings', {}))
+            # 先构建临时对象验证，成功后再赋值，保证原子性
+            new_settings = SystemSettings(**data.get('settings', {}))
             
             raw_tasks = data.get('tasks', [])
-            cls.tasks = [TaskModel(**t) for t in raw_tasks if t.get('enable', True)]
+            new_tasks = [TaskModel(**t) for t in raw_tasks if t.get('enable', True)]
             
+            # 验证通过，更新状态
+            cls.settings = new_settings
+            cls.tasks = new_tasks
             cls._last_mtime = mtime
             return True
+
         except Exception as e:
-            raise ValueError(f"配置文件格式错误: {e}")
+            logger.error(f"❌ 配置文件重载失败 (保持旧配置): {e}")
+            return False
 
     @classmethod
     def validate_env(cls):

@@ -1,7 +1,7 @@
 import os
 import secrets
 from datetime import datetime, timedelta, timezone
-from typing import Optional
+from typing import Optional, List, Any
 
 from fastapi import FastAPI, Depends, HTTPException, status, Header
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
@@ -14,6 +14,9 @@ import yaml
 
 from app.monitor import monitor
 from app.config import AppConfig as Config
+
+# --- 全局状态 ---
+telegram_client: Any = None  # 在 main_dispatcher.py 中赋值
 
 # --- 安全配置 ---
 SECRET_KEY = os.getenv("WEB_SECRET_KEY", secrets.token_hex(32))
@@ -119,6 +122,27 @@ async def save_config(data: dict, user: str = Depends(get_current_user)):
         return {"status": "success"}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+@app.get("/api/chats")
+async def list_chats(user: str = Depends(get_current_user)):
+    """获取当前账号的所有群组和频道列表"""
+    if not telegram_client or not telegram_client.is_connected():
+        raise HTTPException(status_code=503, detail="Telegram client is not connected")
+    
+    chats = []
+    try:
+        async for dialog in telegram_client.iter_dialogs():
+            if dialog.is_group or dialog.is_channel:
+                chat_type = "群组" if dialog.is_group else "频道"
+                chats.append({
+                    "id": dialog.id,
+                    "name": dialog.title,
+                    "type": chat_type
+                })
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+        
+    return chats
 
 @app.get("/", response_class=HTMLResponse)
 async def index():

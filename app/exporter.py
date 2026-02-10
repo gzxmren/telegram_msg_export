@@ -77,6 +77,7 @@ class CSVExporter(BaseExporter):
             # 过滤掉不在表头中的字段
             filtered = {k: v for k, v in data.items() if k in self.fieldnames}
             self.writer.writerow(filtered)
+            self.file.flush()
 
 class TXTExporter(BaseExporter):
     def open(self, mode='a'):
@@ -102,6 +103,7 @@ class TXTExporter(BaseExporter):
             val = val.strip()
             if val and val not in self.seen_data:
                 self.file.write(val + '\n')
+                self.file.flush()
                 self.seen_data.add(val)
 
 class ExporterFactory:

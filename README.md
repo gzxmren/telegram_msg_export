@@ -45,6 +45,15 @@ python3 main_dispatcher.py --web --daemon
 ```
 访问地址：`http://localhost:8000`
 
+### 获取群组 ID (Listing Chats)
+为了配置监控任务，你需要获取目标群组的 ID。
+```bash
+python3 list_chats.py
+```
+**✨ 新特性 (v0.8.1)**: 该脚本支持 **混合模式 (Hybrid Mode)**。
+- 如果主程序 (`main_dispatcher.py`) 正在运行，它会自动通过 API 获取列表，**无需停止服务**，彻底解决 `database is locked` 问题。
+- 如果主程序未运行，它会自动降级为直接连接模式（需登录）。
+
 ### 运行测试
 确保任何改动后代码依然稳健：
 ```bash
