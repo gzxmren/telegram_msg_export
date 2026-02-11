@@ -36,16 +36,33 @@ WEB_PASSWORD=admin  # Web 后端登录密码
 
 ---
 
-## 🚀 使用指南
+## 🚀 运维管理 (System Management)
 
-### 启动所有功能 (推荐)
-启动守护进程模式并开启 Web 控制面板：
+本项目提供了统一的管理脚本 `manage.sh`，封装了 Systemd 服务配置与日常操作，彻底解决进程锁冲突问题。
+
+### 1. 首次安装 (Install)
+生成并注册 Systemd 服务文件（需 sudo 权限）：
 ```bash
-python3 main_dispatcher.py --web --daemon
+./manage.sh install
 ```
-访问地址：`http://localhost:8000`
 
-### 获取群组 ID (Listing Chats)
+### 2. 服务控制
+```bash
+./manage.sh start    # 启动后台服务
+./manage.sh stop     # 停止服务
+./manage.sh restart  # 重启服务
+./manage.sh status   # 查看运行状态
+./manage.sh logs     # 实时查看日志 (Ctrl+C 退出)
+```
+> Web 控制台地址：`http://localhost:8000`
+
+### 3. 调试模式 (Debug)
+如果你需要修改代码并查看实时输出，可以使用调试模式。脚本会自动暂停后台服务以释放文件锁：
+```bash
+./manage.sh run
+```
+
+### 4. 获取群组 ID (Listing Chats)
 为了配置监控任务，你需要获取目标群组的 ID。
 ```bash
 python3 list_chats.py
