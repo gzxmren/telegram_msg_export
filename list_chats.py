@@ -1,23 +1,30 @@
 import asyncio
 import httpx
+import subprocess
 from app.client import get_client
 from app.config import AppConfig
 
 # 尝试连接本地 API 的配置
-API_HOST = "http://localhost"
+API_HOST = "http://127.0.0.1"
 API_PORT = 8000 
+
+def is_service_running():
+    """检查 Systemd 服务是否正在运行"""
+    try:
+        # 检查名为 tg-export 的服务状态
+        result = subprocess.run(['systemctl', 'is-active', '--quiet', 'tg-export'], capture_output=False)
+        return result.returncode == 0
+    except:
+        return False
 
 async def fetch_from_api():
     """尝试从运行中的主程序获取列表 (避免文件锁)"""
     url = f"{API_HOST}:{API_PORT}"
-    print(f"[*] 尝试连接本地服务: {url} ...")
     
-    async with httpx.AsyncClient(timeout=2.0, trust_env=False) as client:
+    async with httpx.AsyncClient(timeout=3.0, trust_env=False) as client:
         try:
             # 1. 登录获取 Token
-            # 注意：这里假设默认密码或从配置读取。为了简化，这里先尝试默认。
-            # 实际场景最好复用 AppConfig
-            pwd = AppConfig.WEB_PASSWORD or "admin"
+            pwd = AppConfig.WEB_PASSWORD
             resp = await client.post(f"{url}/token", data={"username": "admin", "password": pwd})
             if resp.status_code != 200:
                 return None
@@ -29,27 +36,36 @@ async def fetch_from_api():
             if resp.status_code == 200:
                 return resp.json()
                 
-        except (httpx.ConnectError, httpx.TimeoutException):
+        except Exception:
             return None
             
     return None
 
 async def main():
-    # 优先尝试 API 方式
-    api_chats = await fetch_from_api()
+    print(f"[*] 正在获取对话列表...")
     
+    # 1. 优先尝试通过 API 获取 (无锁风险)
+    api_chats = await fetch_from_api()
     if api_chats:
-        print("✅ 检测到主程序正在运行，通过 API 获取列表 (无文件锁风险)")
+        print("✅ 检测到主程序正在运行，已通过 API 获取列表。")
         print("\n" + "="*50)
         print(f"{ 'ID':<20} | {'类型':<10} | {'名称'}")
         print("="*50)
         for chat in api_chats:
             print(f"{chat['id']:<20} | {chat['type']:<10} | {chat['name']}")
-    else:
-        print("⚠️  主程序未运行或无法连接，尝试直接读取 Session 文件...")
-        print("[*] 正在获取对话列表，请稍候...")
-        
-        # 降级到直接连接模式
+        print("="*50)
+        return
+
+    # 2. 如果 API 不通，检查服务是否在运行
+    if is_service_running():
+        print("\n❌ 错误: 后台服务 'tg-export' 正在运行，锁定了 Session 数据库。")
+        print("👉 请通过浏览器访问管理面板查看列表: http://<服务器IP>:8000")
+        print("👉 或者先停止后台服务: ./manage.sh stop")
+        return
+
+    # 3. 只有在服务没运行的情况下，才尝试直接读取文件
+    print("⚠️  主程序未运行，尝试直接读取 Session 文件...")
+    try:
         client = await get_client()
         
         print("\n" + "="*50)
@@ -60,9 +76,13 @@ async def main():
             if dialog.is_group or dialog.is_channel:
                 type_str = "群组" if dialog.is_group else "频道"
                 print(f"{dialog.id:<20} | {type_str:<10} | {dialog.title}")
-            
-    print("="*50)
-    print("\n[?] 请找到你的目标群组，将对应的 ID (通常以 -100 开头) 复制到 .env 文件的 CHAT_ID 字段中。")
+        print("="*50)
+    except Exception as e:
+        if "database is locked" in str(e):
+            print("\n❌ 数据库仍被锁定。可能有其他残留进程在占用。")
+            print("👉 尝试清理进程: pkill -f main_dispatcher.py")
+        else:
+            print(f"\n❌ 获取列表失败: {e}")
 
 if __name__ == '__main__':
     try:
@@ -76,4 +96,3 @@ if __name__ == '__main__':
         else:
             print("\n⚠️  代理配置可能无效，请检查您的代理设置。")
             print(f"   当前配置: {AppConfig.PROXY_TYPE}://{AppConfig.PROXY_HOST}:{AppConfig.PROXY_PORT}")
-

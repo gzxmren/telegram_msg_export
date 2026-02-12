@@ -11,10 +11,12 @@ async def test_processor_enhancement():
         source_group="g", source_id="1"
     )
     
-    with patch("app.metadata.metadata_provider.fetch_title", new_callable=AsyncMock) as mock_fetch:
-        mock_fetch.return_value = "Mock Title"
+    with patch("app.metadata.metadata_provider.fetch_metadata", new_callable=AsyncMock) as mock_fetch:
+        # 返回 (title, final_url)
+        mock_fetch.return_value = ("Mock Title", "https://example.com")
         processed = await MessageProcessor.process(msg)
         assert processed.title == "Mock Title"
+        assert processed.url == "https://example.com"
 
 def test_processor_match():
     from pydantic import BaseModel

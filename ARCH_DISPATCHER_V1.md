@@ -47,7 +47,9 @@ graph TD
 
 ### 2.2 消息增强流程
 1.  **标准化**: 原始消息通过 `app/parser.py` 转换为 `MessageData` 模型。
-2.  **标题发现 (Active)**: 若 Telegram 原生预览缺失标题，`MetadataProvider` 通过 `aiohttp` 执行受控的异步抓取（3s 超时/缓存）。
+2. **元数据增强 (Active Metadata)**: 若 URL 存在，`MetadataProvider` 执行受控的异步抓取（3s 超时/缓存），同时完成：
+    *   **标题补全**: 获取网页 `<title>`。
+    *   **链接展开**: 解析短链（如 v.douyin.com）获取最终长链接，并再次通过 `Cleaner` 清洗追踪参数。
 3.  **清洗**: `URLCleaner` 应用正则与规则集，剔除 X/Twitter/WeChat 的追踪参数。
 
 ### 2.3 智能路由与查重

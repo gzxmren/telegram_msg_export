@@ -26,8 +26,30 @@ class URLCleaner:
         parsed = urlparse(url)
         domain = parsed.netloc.lower()
         query_params = parse_qs(parsed.query)
+
+        # 1. YouTube 归一化处理 (KISS 原则：非联网解析)
+        if any(d in domain for d in ["youtube.com", "youtu.be"]):
+            video_id = None
+            if "youtu.be" in domain:
+                video_id = parsed.path.lstrip('/').split('/')[0]
+            elif "/shorts/" in parsed.path:
+                video_id = parsed.path.split("/shorts/")[1].split('/')[0]
+            elif "/live/" in parsed.path:
+                video_id = parsed.path.split("/live/")[1].split('/')[0]
+            elif "/v/" in parsed.path:
+                video_id = parsed.path.split("/v/")[1].split('/')[0]
+            else:
+                video_id = query_params.get('v', [None])[0]
+            
+            if video_id:
+                # 构造标准 watch URL
+                new_query = f"v={video_id}"
+                # 保留时间戳参数 (如果有)
+                t = query_params.get('t', [None])[0]
+                if t: new_query += f"&t={t}"
+                return f"https://www.youtube.com/watch?{new_query}"
         
-        # 1. 查找匹配的任务规则
+        # 2. 查找匹配的任务规则 (原有逻辑)
         platform_rule = None
         for rule in self.rules.get('platforms', []):
             if any(d in domain for d in rule.get('domains', [])):

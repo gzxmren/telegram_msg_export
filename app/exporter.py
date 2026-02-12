@@ -5,9 +5,28 @@ from abc import ABC, abstractmethod
 class BaseExporter(ABC):
     """导出器抽象基类"""
     def __init__(self, file_path):
-        self.file_path = file_path
+        # 安全校验：防止路径穿越
+        self.file_path = self._sanitize_path(file_path)
         self.file = None
         self.seen_data = set()
+
+    def _sanitize_path(self, path: str) -> str:
+        """确保路径安全，限制在项目 data 目录下"""
+        # 获取绝对路径
+        abs_path = os.path.abspath(path)
+        # 获取当前项目的 data 目录绝对路径
+        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        data_dir = os.path.join(project_root, "data")
+        
+        # 如果路径不在 data 目录下，强制修正
+        if not abs_path.startswith(data_dir):
+            filename = os.path.basename(path)
+            # 即使传入了恶意路径，也强制将其保存到 data/safe_export/ 目录下
+            safe_path = os.path.join(data_dir, "safe_export", filename)
+            # print(f"🛡️ 安全审计：拦截到越权路径 {path}，已重定向至 {safe_path}")
+            return safe_path
+            
+        return abs_path
 
     @abstractmethod
     def open(self, mode='a'):

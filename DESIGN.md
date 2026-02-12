@@ -62,3 +62,28 @@
 - **单元测试**: 对 Cleaner、Config、Metadata 等模块进行全覆盖测试。
 - **集成测试**: 模拟 Web API 交互，确保安全逻辑。
 - **性能优化**: 标题抓取带 3s 超时与 LRU 缓存，避免阻塞主循环。
+
+## 6. 未来架构演进 (v1.0: TG-Link-Dispatcher)
+
+### 6.1 核心变革：任务驱动 (Task-Driven)
+从单一脚本模式升级为**基于配置的任务调度引擎**。
+- **动态路由**: 不再硬编码群组与输出文件的关系，而是通过 YAML 配置文件定义 N 个独立的 `Task`。
+- **关键词分发**: 每个 Task 拥有独立的 `keywords` 规则，系统自动将消息分发至命中规则的 Task 输出文件。
+
+### 6.2 配置文件示例 (config.yaml)
+```yaml
+tasks:
+  - name: "Twitter_Feed"
+    sources: [-10012345678]
+    keywords: ["x.com", "twitter.com"]
+    output: "./data/twitter.csv"
+
+  - name: "Douyin_Videos"
+    sources: ["all"]  # 监听所有群
+    keywords: ["douyin.com"]
+    output: "./data/videos.csv"
+```
+
+### 6.3 运行模式
+- **Daemon Mode**: `python main.py --daemon` (后台常驻，定时轮询)
+- **Run-Once**: `python main.py --run-once` (单次执行，适合 Crontab)

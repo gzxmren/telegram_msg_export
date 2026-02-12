@@ -38,3 +38,10 @@ platforms:
     keep:
       - "v"  # 核心视频 ID
       - "t"  # 播放时间点点
+
+  # 抖音规则
+  - name: "douyin"
+    domains: ["douyin.com", "v.douyin.com", "iesdouyin.com"]
+    # 策略建议使用 strip_all，因为抖音分享的长链接参数（如 utm_*, enter_from, previous_page）均为追踪用途
+    # 视频 ID 通常包含在 URL 路径中（/video/123/），不需要参数即可访问
+    strategy: "strip_all"

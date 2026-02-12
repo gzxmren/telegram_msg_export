@@ -1,143 +1,136 @@
-# TG-Link-Dispatcher 设计文档 (v2.0)
+# TG-Link-Dispatcher 设计文档 (v1.0)
 
-**日期**: 2026-02-01
-**状态**: 草案 (Draft)
-**原项目**: TG-Exporter
-
----
-
-## 1. 项目愿景 (Vision)
-本项目将从单一的“消息归档工具”转型为**智能消息调度系统 (TG-Link-Dispatcher)**。
-**核心目标**: 自动化监听多个 Telegram 群组，精准提取特定平台（Twitter/X, WeChat, Douyin 等）的内容链接，并根据预设的路由规则，将清洗后的链接与元数据分发到本地不同目录下的 CSV/TXT 文件中。
+**日期**: 2026-02-12
+**状态**: 正式设计 (Approved)
+**目标**: 构建一个基于配置驱动的、多源多目标的 Telegram 消息路由引擎。
 
 ---
 
-## 2. 核心架构 (Architecture)
+## 1. 项目概述 (Overview)
+TG-Link-Dispatcher 是一个多源、多规则的消息路由系统。它监听指定的 Telegram 群组，根据用户定义的规则（关键词/域名）对消息进行筛选，并将命中的消息分发到不同的本地文件中。
 
-系统采用**任务驱动 (Task-Driven)** 模型，核心流程如下：
+**核心哲学**:
+*   **配置驱动**: 一切路由逻辑通过 `config.yaml` 定义，无需修改代码。
+*   **任务导向**: 系统由多个独立的 Task 组成，每个 Task 负责特定的“来源 -> 筛选 -> 存储”流程。
+*   **热插拔**: 支持灵活地插入或移除路由规则。
+
+---
+
+## 2. 逻辑架构 (Logical Architecture)
+
+系统划分为四个核心层级：
 
 ```mermaid
-[Telegram Sources] 
-       ↓
-[Input Listener] (轮询/增量读取)
-       ↓
-[URL Extractor] (提取原始链接)
-       ↓
-[URL Normalizer] (基于 rules.yaml 动态清洗/标准化)
-       ↓
-[Deduplicator] (基于 Canonical URL 的文件级去重)
-       ↓
-[Dispatcher] (路由分发)
-       ↓
-[Storage Adapters] (写入 CSV/TXT)
+graph TD
+    subgraph "配置层 (Configuration)"
+        Config[config.yaml] -->|加载| TaskManager[任务管理器]
+    end
+
+    subgraph "采集层 (Ingestion)"
+        TG[Telegram Server] -->|API| Client[Telegram Client]
+        TaskManager -->|订阅源列表| Client
+    end
+
+    subgraph "路由层 (Routing Core)"
+        Client -->|原始消息| Router[路由分发器]
+        TaskManager -->|分发规则| Router
+        Router -->|匹配成功| Handler[消息处理器]
+    end
+
+    subgraph "存储层 (Storage)"
+        Handler -->|写入| AdapterA[CSV Adapter (Topic A)]
+        Handler -->|写入| AdapterB[CSV Adapter (Topic B)]
+        Handler -->|写入| AdapterC[TXT Adapter (Topic C)]
+    end
 ```
 
 ---
 
-## 3. 功能需求详细说明
+## 3. 数据流程 (Data Flow)
 
-### 3.1 运行模式 (Running Modes)
-系统需支持两种运行模式，通过命令行参数切换：
-1.  **后台守护模式 (Daemon)**:
-    *   参数: `--daemon`
-    *   行为: 长期驻留，按 `loop_interval` 设定的间隔（如 10 分钟）无限循环轮询。
-2.  **手动触发模式 (Run-Once)**:
-    *   参数: `--run-once` (默认)
-    *   行为: 执行一次全量任务检查后退出，适合 Crontab 调度或调试。
+1.  **配置加载 (Load Phase)**:
+    *   程序启动，读取 `config.yaml`。
+    *   解析 Task 列表，提取所有需要监听的 Source Channel IDs。
 
-### 3.2 链接清洗与标准化 (URL Normalization)
-**痛点**: 不同平台链接包含大量追踪参数（如 `utm_source`, `?s=20`），导致重复和数据冗余。微信等平台则需要保留特定参数。
-**方案**: **基于规则配置引擎**。
-*   不硬编码清洗逻辑。
-*   通过 `rules.yaml` 定义不同域名的清洗策略（白名单/黑名单参数）。
+2.  **消息采集 (Ingestion Phase)**:
+    *   Client 遍历目标 Channel。
+    *   基于 `min_id` 进行增量拉取。
 
-### 3.3 智能去重 (Smart Deduplication)
-*   **标准**: 使用清洗后的 **Canonical URL** (规范化链接) 作为唯一指纹。
-*   **范围**: **文件级去重**。
-*   **逻辑**: 在写入目标文件前，程序加载该文件已有的 URL 列表。若新抓取的 URL 已存在，则自动丢弃，保留最早的一条。
+3.  **路由匹配 (Routing Phase)**:
+    *   对每一条消息，遍历所有启用的 Task。
+    *   **匹配逻辑**:
+        1.  `Source Check`: 消息来源是否在 Task 的 `sources` 列表中？
+        2.  `Keyword Check`: 消息文本是否包含 Task 定义的 `keywords`？
+    *   支持 **1:N 分发**: 一条消息可同时命中多个 Task。
 
-### 3.4 历史消息处理
-*   **增量更新**: 默认行为。读取 CSV 中最后一条 `message_id`，只拉取更新的消息。
-*   **历史回溯**: 支持首次运行自动拉取历史消息，或通过参数强制回溯。
+4.  **持久化 (Persistence Phase)**:
+    *   将命中的消息路由至 Task 指定的 `output_file`。
+    *   支持 CSV (完整元数据) 和 TXT (纯链接) 格式。
+    *   更新 Checkpoint。
 
 ---
 
-## 4. 配置文件设计
+## 4. 配置文件设计 (Configuration)
 
-系统配置将拆分为两个文件，以实现“任务逻辑”与“清洗规则”的解耦。
-
-### 4.1 主配置 (`config.yaml`)
-定义“做什么” (Tasks)。
+这是系统的核心控制面。
 
 ```yaml
-settings:
-  session_name: "my_dispatcher"
-  loop_interval: 600       # 轮询间隔(秒)
-  
-tasks:
-  - name: "Twitter_Focus"
-    enable: true
-    sources: [-100111, -100222]   # 监听群组
-    platforms: ["twitter"]        # 只提取推特
-    output: "./data/twitter_subs.csv"
+# config.yaml
 
+settings:
+  session_name: "tg_dispatcher"
+  loop_interval: 300   # 轮询间隔(秒)
+  log_level: "INFO"
+
+# 任务列表：定义从哪里抓(sources)，匹配什么(keywords)，存到哪里(output)
+tasks:
+  # 任务 1: 推特链接收集
+  - name: "Twitter_Feed"
+    enable: true
+    sources: [-10012345678, -10087654321]  # 监听群组 ID
+    keywords: ["twitter.com", "x.com"]     # 关键词匹配
+    output:
+      path: "./data/social/twitter_links.csv"
+      format: "csv"
+
+  # 任务 2: 微信文章存档
   - name: "WeChat_Articles"
     enable: true
-    sources: [-100333]
-    platforms: ["wechat"]
-    output: "./data/read_later/wechat.csv"
-```
+    sources: [-10055566677]
+    keywords: ["mp.weixin.qq.com"]
+    output:
+      path: "./data/read_later/wechat.txt"
+      format: "txt"
 
-### 4.2 规则配置 (`rules.yaml`)
-定义“怎么做” (Normalization Rules)。
-
-```yaml
-platforms:
-  twitter:
-    domains: ["x.com", "twitter.com"]
-    normalization:
-      mode: "whitelist_params"
-      params: []  # 移除所有参数，只留路径
-
-  wechat:
-    domains: ["mp.weixin.qq.com"]
-    normalization:
-      mode: "whitelist_params"
-      params: ["__biz", "mid", "idx", "sn"] # 仅保留核心参数
-      
-  default:
-    normalization:
-      mode: "blacklist_params"
-      params: ["utm_source", "share_id"] # 移除通用垃圾参数
+  # 任务 3: 全局抖音视频监控 (监听所有群)
+  - name: "Douyin_Videos"
+    enable: true
+    sources: ["all"]  # 特殊标识，监听所有已加入群组
+    keywords: ["douyin.com", "v.douyin.com"]
+    output:
+      path: "./data/videos/douyin.csv"
+      format: "csv"
 ```
 
 ---
 
-## 5. 数据存储格式
+## 5. 关键功能实现方案
 
-### CSV 格式 (推荐)
-保留完整元数据，便于溯源。
-**Columns**:
-*   `fetched_at`: 抓取时间
-*   `msg_date`: 消息发送时间
-*   `chat_id`: 来源群组
-*   `sender`: 发送者
-*   `platform`: 平台标签 (twitter/wechat...)
-*   **`url`**: 清洗后的规范化链接
-*   `raw_text`: 消息原始文本片段
+### A. 运行模式
+通过命令行参数控制：
+*   **手动模式 (默认)**: `python main.py --run-once`
+    *   执行一次全量轮询后退出。
+*   **后台守护模式**: `python main.py --daemon`
+    *   启动无限循环，每隔 `loop_interval` 秒执行一次轮询。
 
----
+### B. 存储适配器
+*   **CSV 模式**:
+    *   表头: `fetched_at`, `msg_date`, `chat_id`, `sender`, `url`, `content`
+    *   编码: UTF-8-SIG (Excel 友好)
+*   **TXT 模式**:
+    *   格式: 仅存储提取到的 URL，或 `[时间] URL`。
 
-## 6. 开发路线图 (Roadmap)
-
-*   **Phase 1: 基础架构重构**
-    *   引入 `PyYAML`。
-    *   建立 `config.yaml` 和 `rules.yaml`。
-    *   定义 Task 数据结构。
-*   **Phase 2: 核心解析引擎**
-    *   实现 `URLCleaner` 类：加载 YAML 规则，执行正则匹配与参数清洗。
-    *   更新 `Parser` 模块：集成 URL 提取功能。
-*   **Phase 3: 调度与存储**
-    *   实现 `Dispatcher`：遍历 Task，拉取消息，调用清洗，分发数据。
-    *   实现 `SmartExporter`：支持去重写入。
-    *   实现 Daemon/Run-once 循环逻辑。
+### C. 下一步计划 (Phases)
+1.  **Phase 1**: 配置加载与 Task 模型定义。
+2.  **Phase 2**: 核心 Router 逻辑与 YAML 驱动的 Dispatcher。
+3.  **Phase 3**: 多文件存储 Exporter 的实现。
