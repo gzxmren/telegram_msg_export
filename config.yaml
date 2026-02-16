@@ -30,7 +30,7 @@ tasks:
 
   - name: "Youtube_Video"
     enable: true
-    sources: [-5298749551]    # "all" 表示监听所有已配置的群组
+    sources: [-5298749551,-5097290219]    # "all" 表示监听所有已配置的群组
     keywords: ["youtube.com", "youtu.be"]
     output:
       path: "./data/youtube/youtube_url.csv"
@@ -39,7 +39,7 @@ tasks:
   - name: "Douyin_Video"
     enable: true
     # 如果想从所有加入的群组中抓取，填 ["all"]；如果是特定群，填 ID 列表
-    sources: [-5152483212]
+    sources: [-5152483212,-5097290219]
     # 关键词包含短链和长链域名，确保能被路由捕获
     keywords: ["douyin.com", "v.douyin.com"]
     output:

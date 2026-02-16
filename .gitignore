@@ -8,3 +8,6 @@ output/
 data/
 .coverage
 *.log.*
+
+.gemini/
+gha-creds-*.json

@@ -1,0 +1,63 @@
+Please enter the code you received: 77374
+Please enter your password: 
+Invalid password. Please try again
+Please enter your password: 
+Invalid password. Please try again
+Please enter your password: 
+Signed in successfully as new new; remember to not break the ToS or you will risk an account ban!
+[+] 登录成功! 当前账号: new (ID: 6395101447)
+
+==================================================
+ID                   | 类型         | 名称
+==================================================
+-1001896599782       | 频道         | huang
+-5184448717          | 群组         | x article
+-4273119056          | 群组         | finance and stock
+-5175449542          | 群组         | WeChat
+-4247498190          | 群组         | ai 1+
+-1002223353966       | 频道         | code
+-5097290219          | 群组         | moltbook
+-4230104782          | 群组         | something cool and interesting
+-5067246237          | 群组         | facebook stock news
+-5204811810          | 群组         | x video
+-4896920523          | 群组         | tesla stock
+-5194163465          | 群组         | python _group_gemini
+-4284628124          | 群组         | net
+-4279883007          | 群组         | bcoin
+-5008487953          | 群组         | 装修
+-5085142602          | 群组         | 闲聊
+-4999940025          | 群组         | 滑雪
+-4979552404          | 群组         | ai解释股票指标
+-4765561802          | 群组         | copy
+-4962354580          | 群组         | rednote
+-1002160235022       | 群组         | books
+-1001836429182       | 频道         | Z-Library Official 📚
+-4212231441          | 群组         | IoT
+-4265717492          | 群组         | cool-work
+-4256075027          | 群组         | books
+-1002152458473       | 频道         | ai us
+-980199962           | 群组         | hh
+==================================================
+
+[?] 请找到你的目标群组，将对应的 ID (通常以 -100 开头) 复制到 .env 文件的 CHAT_ID 字段中。
+
+
+
+- name: "Douyin_Video"
+   2     enable: true
+   3     # 如果想从所有加入的群组中抓取，填 ["all"]；如果是特定群，填 ID 列表
+   4     sources: ["all"]
+   5     # 关键词包含短链和长链域名，确保能被路由捕获
+   6     keywords: ["douyin.com", "v.douyin.com"]
+   7     output:
+   8       path: "./data/douyin/douyin_videos.csv"
+   9       format: "csv"
+
+
+
+# 抖音规则
+   5   - name: "douyin"
+   6     domains: ["douyin.com", "v.douyin.com", "iesdouyin.com"]
+   7     # 策略建议使用 strip_all，因为抖音分享的长链接参数（如 utm_*, enter_from, previous_page）均为追踪用途
+   8     # 视频 ID 通常包含在 URL 路径中（/video/123/），不需要参数即可访问
+   9     strategy: "strip_all"

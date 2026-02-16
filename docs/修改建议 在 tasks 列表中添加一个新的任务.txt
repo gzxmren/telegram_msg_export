@@ -1,0 +1,24 @@
+**修改建议：**
+在 `tasks` 列表中添加一个新的任务。您可以根据需要选择监控特定的群组（`sources`），或者使用 `all` 监控所有群组中的抖音链接。
+
+```yaml
+  - name: "Douyin_Video"
+    enable: true
+    # 如果想从所有加入的群组中抓取，填 ["all"]；如果是特定群，填 ID 列表
+    sources: ["all"] 
+    # 关键词包含短链和长链域名，确保能被路由捕获
+    keywords: ["douyin.com", "v.douyin.com"]
+    output:
+      path: "./data/douyin/douyin_videos.csv"
+      format: "csv"
+```
+
+---
+
+### 修改思路总结：
+
+1.  **路由逻辑**：当 `Dispatcher` 扫描消息时，如果内容包含 `v.douyin.com`，它会匹配到 `Douyin_Video` 任务。
+2.  **清洗逻辑**：在保存之前，`URLCleaner` 会根据 `rules.yaml` 把那些烦人的追踪参数（例如 `?utm_source=copy_link&share_id=...`）全部删掉。
+3.  **适配建议**：如果您接下来采纳我之前提到的“短链接解析”方案，那么即便消息里是 `v.douyin.com/xyz`，程序也会在后台将其还原成 `douyin.com/video/123`。这不仅能让 `rules.yaml` 的长链规则生效，还能确保同一个视频不会因为分享链接不同而被重复记录。
+
+**您是否需要我直接执行这些文件修改，并同时实现“短链接解析”的代码逻辑？**

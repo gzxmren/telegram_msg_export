@@ -104,6 +104,7 @@ class Dispatcher:
         new_max_id = last_id
         current_source_processed = 0
         total_fetched = 0
+        msg_data = None # Initialize msg_data
 
         try:
             async for message in client.iter_messages(entity, min_id=last_id, reverse=True):
@@ -155,17 +156,17 @@ class Dispatcher:
                 self.checkpoint.set(source_id, new_max_id)
             logger.error(f"同步 [{group_title}] 失败: {e}")
 
-    async def _export_to_task(self, task, msg: MessageData) -> bool:
+    async def _export_to_task(self, task, msg_data: MessageData) -> bool:
         """执行导出与去重检查"""
         exporter = self.exporters.get(task.output.path)
         if not exporter: return False
         
-        if msg.url and exporter.is_duplicate(msg.url):
-            msg_log = f"⏭️ 跳过重复 URL (任务: {task.name}, 源: {msg.source_group})"
+        if msg_data.url and exporter.is_duplicate(msg_data.url):
+            msg_log = f"⏭️ 跳过重复 URL (任务: {task.name}, 源: {msg_data.source_group})"
             monitor.add_log(msg_log)
             return False
 
-        exporter.write(msg.model_dump())
+        exporter.write(msg_data.model_dump())
         return True
 
     def _match_source(self, entity, task_sources) -> bool:

@@ -1,7 +1,7 @@
 import os
 import yaml
 from typing import List, Dict, Optional, Any
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, validator
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -17,7 +17,7 @@ class TaskModel(BaseModel):
     keywords: List[str] = []
     output: ExporterSettings
 
-    @field_validator('sources', mode='before')
+    @validator('sources', pre=True)
     @classmethod
     def normalize_sources(cls, v):
         # 兼容配置中写成单值的情况，自动转为列表
