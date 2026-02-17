@@ -3,6 +3,7 @@ import aiohttp
 from urllib.parse import urlparse
 from bs4 import BeautifulSoup
 from app.logger import logger
+from app.config import AppConfig
 from typing import Optional
 import re
 
@@ -15,8 +16,19 @@ class MetadataProvider:
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
         }
 
+    def _get_proxy_url(self) -> Optional[str]:
+        """从 AppConfig 构造代理 URL"""
+        if AppConfig.PROXY_HOST and AppConfig.PROXY_PORT:
+            # aiohttp 原生仅支持 HTTP 代理
+            if AppConfig.PROXY_TYPE.upper() == "HTTP":
+                auth = ""
+                if AppConfig.PROXY_USER and AppConfig.PROXY_PASS:
+                    auth = f"{AppConfig.PROXY_USER}:{AppConfig.PROXY_PASS}@"
+                return f"http://{auth}{AppConfig.PROXY_HOST}:{AppConfig.PROXY_PORT}"
+        return None
+
     def _is_safe_url(self, url: str) -> bool:
-        """检查 URL 是否安全，防止 SSRF 攻击 (禁止内网/本地请求)"""
+        # ... (保持原有代码不变)
         try:
             parsed = urlparse(url)
             hostname = parsed.hostname.lower() if parsed.hostname else ""
@@ -45,6 +57,8 @@ class MetadataProvider:
         
         async def try_fetch(use_proxy: bool):
             request_headers = self.headers.copy()
+            proxy_url = self._get_proxy_url() if use_proxy else None
+            
             if "douyin.com" in url or "iesdouyin.com" in url:
                 request_headers.update({
                     "User-Agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36",
@@ -61,9 +75,10 @@ class MetadataProvider:
                 headers=request_headers,
                 max_line_size=16384,
                 max_field_size=16384,
-                trust_env=use_proxy
+                trust_env=True # 始终允许读取系统环境变量代理
             ) as session:
-                async with session.get(url, timeout=timeout, allow_redirects=True) as response:
+                # 如果 use_proxy 为 True 且配置了显式代理，则优先使用
+                async with session.get(url, timeout=timeout, allow_redirects=True, proxy=proxy_url) as response:
                     final_url = str(response.url)
                     if response.status != 200:
                         return None, final_url
@@ -109,8 +124,37 @@ class MetadataProvider:
                                 js_title_match = re.search(r'var msg_title = ["\'](.*?)["\'];', html)
                                 if js_title_match:
                                     title = js_title_match.group(1)
+                                
+                                # 抖音特有逻辑：提取 RENDER_DATA 中的 desc 或 title
+                                if not title and ("douyin.com" in final_url or "iesdouyin.com" in final_url):
+                                    # 尝试匹配 RENDER_DATA
+                                    render_data_match = re.search(r'id="RENDER_DATA"[^>]*>(.*?)</script>', html)
+                                    if render_data_match:
+                                        try:
+                                            import json
+                                            from urllib.parse import unquote
+                                            raw_json = unquote(render_data_match.group(1))
+                                            # 在 RENDER_DATA 中找 desc 字段
+                                            desc_match = re.search(r'["\']desc["\']\s*:\s*["\'](.*?)["\']', raw_json)
+                                            if desc_match:
+                                                title = desc_match.group(1).encode('utf-8').decode('unicode_escape', errors='ignore')
+                                        except:
+                                            pass
+                                    
+                                    # 备选：正则匹配常见的视频描述变量
+                                    if not title:
+                                        video_desc_match = re.search(r'["\'](?:share_)?title["\']\s*:\s*["\'](.*?)["\']', html)
+                                        if video_desc_match:
+                                            title = video_desc_match.group(1)
 
                     if title:
+                        # 清洗标题中的转义字符
+                        try:
+                            if "\\" in title:
+                                title = title.encode('utf-8').decode('unicode_escape', errors='ignore')
+                        except:
+                            pass
+                        
                         title = re.sub(r'\s+', ' ', str(title)).strip()
                         if len(title) > 200: title = title[:197] + "..."
                         return title, final_url

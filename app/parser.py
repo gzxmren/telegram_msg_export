@@ -1,10 +1,6 @@
 from datetime import datetime
 import pytz
-from telethon import types
-from app.cleaner import cleaner
-
-from datetime import datetime
-import pytz
+import re
 from telethon import types
 from app.cleaner import cleaner
 from app.models import MessageData
@@ -47,6 +43,22 @@ async def parse_message(message, group_title: str, source_id: str) -> MessageDat
         wp = message.media.webpage
         if isinstance(wp, types.WebPage) and wp.title:
             title = wp.title
+            
+    # 针对抖音等短链接消息的特殊提取策略 (当原生标题为空时)
+    if not title and extracted_url:
+        if "douyin.com" in extracted_url:
+            # 常见格式：...看看【XXX的作品】标题文本 URL
+            match = re.search(r'】(.*?)\s+https?://', content)
+            if match:
+                title = match.group(1).strip()
+            if not title:
+                # 备选格式：标题文本 URL
+                # 假设 URL 之前的一行或一段话就是标题
+                parts = content.split(extracted_url)[0].strip().split('\n')
+                if parts:
+                    last_line = parts[-1].strip()
+                    if len(last_line) > 5: # 太短可能不是标题
+                         title = last_line
 
     return MessageData(
         message_id=message.id,
